@@ -48,11 +48,25 @@ h2 { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--ink-2); }
 .notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--ink-2); }
 .empty { text-align: center; padding: 48px 16px; color: var(--ink-2); }
 body.drag .wrap { outline: 2px dashed var(--s1); outline-offset: -8px; border-radius: 8px; }
-.gitform input {
+.gitform input, .lnform input {
   font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 5px;
   padding: 6px 10px; min-width: 0; max-width: 100%;
 }
-.gitform input:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.gitform input:focus-visible, .lnform input:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+#lnPass { width: 170px; }
+.tabs { display: inline-flex; align-self: flex-start; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.tabs button { font: inherit; font-size: 13px; padding: 7px 18px; border: 0; background: none; color: var(--ink-2); cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); }
+.tabs button:focus-visible { outline: 2px solid var(--s1); outline-offset: -2px; }
+#viewLearn .panel, .lnsub { display: flex; flex-direction: column; gap: 12px; }
+#viewLearn .panel h2 { margin: 0; }
+#viewLearn .stats { padding: 0; }
+#viewLearn .legend { margin: 0; }
+.sbar-row { display: grid; grid-template-columns: minmax(110px, 190px) minmax(100px, 1fr) minmax(200px, auto); gap: 10px; align-items: center; font-size: 12.5px; padding: 3px 0; }
+.sbar-row.pick .nm { font-weight: 600; }
+.sbar { display: flex; gap: 2px; height: 12px; min-width: 0; }
+.sbar i { background: var(--c); border-radius: 2px; min-width: 0; }
+@media (max-width: 700px) { .sbar-row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
 #gitRepo { width: 210px; }
 #gitBranch { width: 90px; }
 #gitToken { width: 250px; }
@@ -155,6 +169,11 @@ tr.gap td { color: var(--muted); text-align: center; }
     <h1>즉시 헷지 시뮬레이터</h1>
     <span class="meta num" id="meta"></span>
   </header>
+  <nav class="tabs" role="tablist" aria-label="화면">
+    <button type="button" role="tab" id="tabSim" aria-selected="true">시뮬레이터</button>
+    <button type="button" role="tab" id="tabLearn" aria-selected="false">학습</button>
+  </nav>
+  <div class="main" id="viewSim">
   <section class="load" aria-label="자료">
     <button type="button" class="btn primary" id="open">자료 열기</button>
     <input type="file" id="zipIn" accept=".zip,application/zip" multiple hidden>
@@ -286,6 +305,57 @@ tr.gap td { color: var(--muted); text-align: center; }
     <h2>기준</h2>
     <ul class="basis" id="basis"></ul>
   </section>
+  </div>
+  </div>
+  <div class="main" id="viewLearn" hidden>
+    <form class="load lnform" id="lnForm" aria-label="학습">
+      <label id="lnPassCtl">비밀번호 <input type="password" id="lnPass" autocomplete="off"></label>
+      <button type="submit" class="btn primary" id="lnOpen">열기</button>
+      <button type="button" class="btn" id="lnRefresh" hidden>새로 고침</button>
+      <label id="lnEtfCtl" hidden>종목 <select id="lnEtf"></select></label>
+      <span class="meta num" id="lnStatus" role="status" aria-live="polite"></span>
+    </form>
+    <div class="main" id="lnBody" hidden>
+      <section class="panel">
+        <h2>미래예측 · 시차별 반응</h2>
+        <div class="stats" id="ln1Stats"></div>
+        <div class="legend">
+          <span class="item"><span class="key" style="--c: var(--s1)"></span>선물</span>
+          <span class="item"><span class="key" style="--c: var(--s2)"></span>환</span>
+        </div>
+        <div class="chart" id="ln1Chart" role="img" aria-label="시차별 반응 선 차트"></div>
+        <div class="tscroll"><table id="ln1Pred"></table></div>
+      </section>
+      <section class="panel">
+        <h2>미헷지 · 체결 뒤 세 행동</h2>
+        <div class="stats" id="ln2Stats"></div>
+        <div class="lnsub" id="ln2Body">
+          <div class="tscroll"><table id="ln2Waits"></table></div>
+          <div class="tscroll"><table id="ln2Cells"></table></div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>영향도 · 설명한 몫 60초 · 따라오는 속도</h2>
+        <div class="stats" id="ln3Stats"></div>
+        <div class="legend">
+          <span class="item"><span class="key" style="--c: var(--s1)"></span>선물</span>
+          <span class="item"><span class="key" style="--c: var(--s2)"></span>환</span>
+          <span class="item"><span class="key" style="--c: var(--bar)"></span>나머지</span>
+        </div>
+        <div id="ln3Bars"></div>
+        <div class="chart" id="ln3Chart" role="img" aria-label="따라오는 속도 선 차트"></div>
+        <div class="two">
+          <div class="tscroll"><table id="ln3Hz"></table></div>
+          <div class="tscroll"><table id="ln3Hours"></table></div>
+        </div>
+      </section>
+      <section class="panel">
+        <h2>헷지 · 전 종목 합 · 비율 × 잔량 시각</h2>
+        <div class="stats" id="ln4Stats"></div>
+        <div class="chart" id="ln4Chart" role="img" aria-label="흔들림 대비 비용 절감 점 차트"></div>
+        <div class="tscroll"><table id="ln4Table"></table></div>
+      </section>
+    </div>
   </div>
 </div>
 <script type="application/json" id="tickdata"></script>
@@ -464,7 +534,27 @@ tr.gap td { color: var(--muted); text-align: center; }
     };
     return sim;
   }
-  var api = { decode: decode, decodeSeries: decodeSeries, idxAt: idxAt, tickOf: tickOf, rnavAt: rnavAt, quotesAt: quotesAt,
+  var FIX = { tStart: 60, tEnd: 22740, step: 10, levels: 2, feeUsd: 1 };
+  function pickRec(e, basis) {
+    if (!e.rec) return null;
+    return e.rec[basis] || (e.needRec ? (e.rec.d || e.rec.i) : null) || null;
+  }
+  function paramsOf(ds, e, c, cache) {
+    var rec = pickRec(e, c.basis), key = e.code + (rec ? c.basis : 'm'), fut = ds.fut[e.fut], usd = ds.usd.s;
+    var p = { mult: fut.mult, lagQ: c.lagQ, lagF: c.lagF, lagU: c.lagU, tStart: FIX.tStart, tEnd: FIX.tEnd, step: FIX.step,
+      rec: rec, level: 1, adj: 0, dist: c.dist / 1e4, levels: FIX.levels, qty: 1, fxLots: 1, feeUsd: FIX.feeUsd,
+      ratioF: c.ratioF / 100, ratioU: c.ratioU / 100, tClose: c.tClose, hmode: c.hmode, wait: c.wait };
+    var q = cache && cache[key];
+    if (!q) {
+      var qs = quoteStats(e.s, fut.s, usd, p);
+      p.level = qs.level;
+      q = { qs: qs, lots: hedgeLots(e.s, fut.s, usd, p) };
+      if (cache) cache[key] = q;
+    }
+    p.level = q.qs.level; p.qty = q.lots.qty; p.fxLots = q.lots.fxLots; p.adj = c.adjBp / 1e4;
+    return { p: p, qs: q.qs, lots: q.lots, rec: !!rec };
+  }
+  var api = { FIX: FIX, pickRec: pickRec, paramsOf: paramsOf, midAt: midAt, decode: decode, decodeSeries: decodeSeries, idxAt: idxAt, tickOf: tickOf, rnavAt: rnavAt, quotesAt: quotesAt,
     quoteStats: quoteStats, hedgeLots: hedgeLots, stateAt: stateAt, simulate: simulate };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HedgeSim = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -791,16 +881,21 @@ tr.gap td { color: var(--muted); text-align: center; }
     if (status === 404) return '저장소 또는 가지를 찾지 못했습니다(이름 · 열쇠 권한 확인)';
     return '깃허브 응답 오류(' + status + ')';
   }
-  async function request(cfg, path, raw, fetchFn) {
+  async function request(cfg, path, raw, fetchFn, soft404) {
     var res;
     try {
       res = await (fetchFn || fetch)(API + '/repos/' + cfg.repo + path,
-        { headers: { Authorization: 'Bearer ' + cfg.token, Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json' } });
+        { cache: 'no-store', headers: { Authorization: 'Bearer ' + cfg.token, Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json' } });
     } catch (err) {
       throw new Error('깃허브에 닿지 못했습니다(인터넷 연결 · 이 페이지의 접속 제한 확인)');
     }
+    if (res.status === 404 && soft404) return null;
     if (!res.ok) throw new Error(problem(res.status));
     return res;
+  }
+  async function fetchText(cfg, path, fetchFn) {
+    var res = await request(cfg, '/contents/' + path.split('/').map(encodeURIComponent).join('/') + '?ref=' + encodeURIComponent(cfg.branch), true, fetchFn, true);
+    return res ? res.text() : null;
   }
   async function listZips(cfg, fetchFn) {
     var res = await request(cfg, '/git/trees/' + encodeURIComponent(cfg.branch) + '?recursive=1', false, fetchFn);
@@ -831,17 +926,237 @@ tr.gap td { color: var(--muted); text-align: center; }
     parts.forEach(function (p) { all.set(p, at); at += p.length; });
     return all;
   }
-  var api = { parseRepo: parseRepo, labelOf: labelOf, listZips: listZips, fetchZip: fetchZip };
+  var api = { parseRepo: parseRepo, labelOf: labelOf, listZips: listZips, fetchZip: fetchZip, fetchText: fetchText };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TickGit = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
 <script>
+(function (root) {
+  'use strict';
+  var ITER = 200000;
+  function subtle() { return (root.crypto || globalThis.crypto).subtle; }
+  function b64(u8) {
+    var s = '';
+    for (var i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+  function unb64(text) {
+    var s = atob(text), u = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    return u;
+  }
+  async function keyOf(password, salt, iter) {
+    var raw = await subtle().importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+    return subtle().deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt: salt, iterations: iter }, raw, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function seal(text, password) {
+    var c = root.crypto || globalThis.crypto, salt = c.getRandomValues(new Uint8Array(16)), iv = c.getRandomValues(new Uint8Array(12));
+    var ct = await subtle().encrypt({ name: 'AES-GCM', iv: iv }, await keyOf(password, salt, ITER), new TextEncoder().encode(text));
+    return { v: 1, kdf: 'PBKDF2-SHA256', iter: ITER, salt: b64(salt), iv: b64(iv), ct: b64(new Uint8Array(ct)) };
+  }
+  async function open(env, password) {
+    if (!env || env.v !== 1 || !env.salt || !env.iv || !env.ct) throw new Error('잠근 자료의 모양이 아닙니다');
+    var pt;
+    try {
+      pt = await subtle().decrypt({ name: 'AES-GCM', iv: unb64(env.iv) }, await keyOf(password, unb64(env.salt), env.iter || ITER), unb64(env.ct));
+    } catch (err) {
+      throw new Error('비밀번호가 틀립니다');
+    }
+    return new TextDecoder().decode(pt);
+  }
+  var api = { seal: seal, open: open };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Seal = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function (root) {
+  'use strict';
+  var SP = ['호가폭 1틱', '호가폭 2틱', '호가폭 3틱 이상'], MOM = ['선물 역방향', '선물 중립', '선물 순방향'], LV = ['1호가', '2호가'];
+  var ACT = { A: '즉시 반대매매', B: '반대편 호가 대기', C: '선물 헷지' };
+  function pct(v, d) { return v == null ? '–' : (v * 100).toFixed(d == null ? 0 : d) + '%'; }
+  function sec(v, d) { return v == null ? '–' : v.toFixed(d == null ? 1 : d) + '초'; }
+  function num(v, d) { return v == null ? '–' : v.toFixed(d == null ? 2 : d); }
+  function lagText(v) { return (v > 0 ? '+' : (v < 0 ? '−' : '')) + Math.abs(v) + '초'; }
+  function tipOf(ui, host) {
+    var tip = host.querySelector('.tip') || ui.el('div', 'tip num');
+    tip.hidden = true;
+    return tip;
+  }
+  function tipShow(ui, tip, x, W, title, rows) {
+    tip.textContent = '';
+    tip.appendChild(ui.el('div', 't', title));
+    rows.forEach(function (r) {
+      var line = ui.el('div', 'r');
+      if (r.color) { var key = ui.el('span', 'key'); key.style.setProperty('--c', r.color); line.appendChild(key); }
+      line.appendChild(ui.el('b', null, r.value)); line.appendChild(ui.el('span', 'n', r.name));
+      tip.appendChild(line);
+    });
+    tip.hidden = false;
+    var left = x + 12;
+    if (left + tip.offsetWidth > W - 4) left = x - 12 - tip.offsetWidth;
+    tip.style.left = Math.max(4, left) + 'px';
+  }
+  function curve(ui, host, cfg) {
+    var W = Math.max(280, host.clientWidth), H = cfg.height || 240, m = { l: 52, r: 16, t: 12, b: 26 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    var xs = cfg.xs, x0 = xs[0], x1 = xs[xs.length - 1], lo = 0, hi = 0, h = [];
+    cfg.series.forEach(function (s) { s.values.forEach(function (v) { if (v < lo) lo = v; if (v > hi) hi = v; }); });
+    if (hi === lo) hi = lo + 1;
+    var ticks = ui.niceTicks(lo, hi, 4);
+    lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+    var X = function (x) { return m.l + (x - x0) / ((x1 - x0) || 1) * pw; }, Y = function (v) { return m.t + (hi - v) / (hi - lo) * ph; };
+    h.push('<svg viewBox="0 0 ' + W + ' ' + H + '" height="' + H + '" font-family="var(--font)" font-size="11">');
+    ticks.forEach(function (v) {
+      var y = Y(v).toFixed(1);
+      h.push('<line x1="' + m.l + '" x2="' + (m.l + pw) + '" y1="' + y + '" y2="' + y + '" stroke="' + (v === 0 ? 'var(--muted)' : 'var(--grid)') + '" stroke-width="1"/>');
+      h.push('<text x="' + (m.l - 8) + '" y="' + (Y(v) + 3.5).toFixed(1) + '" text-anchor="end" fill="var(--muted)">' + cfg.fmtY(v) + '</text>');
+    });
+    if (cfg.markX != null) h.push('<line x1="' + X(cfg.markX).toFixed(1) + '" x2="' + X(cfg.markX).toFixed(1) + '" y1="' + m.t + '" y2="' + (m.t + ph) + '" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3"/>');
+    cfg.xTicks.forEach(function (x) { h.push('<text x="' + X(x).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" fill="var(--muted)">' + cfg.fmtX(x) + '</text>'); });
+    cfg.series.forEach(function (s) {
+      var d = s.values.map(function (v, i) { return (i ? 'L' : 'M') + X(xs[i]).toFixed(1) + ' ' + Y(v).toFixed(1); }).join('');
+      h.push('<path d="' + d + '" fill="none" stroke="' + s.color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>');
+      s.values.forEach(function (v, i) { h.push('<circle cx="' + X(xs[i]).toFixed(1) + '" cy="' + Y(v).toFixed(1) + '" r="3" fill="' + s.color + '" stroke="var(--surface)" stroke-width="1.5"/>'); });
+    });
+    h.push('<line class="cx" y1="' + m.t + '" y2="' + (m.t + ph) + '" stroke="var(--muted)" stroke-width="1" visibility="hidden"/></svg>');
+    var tip = tipOf(ui, host);
+    host.innerHTML = h.join('');
+    host.appendChild(tip);
+    var at = function (i) {
+      var ln = host.querySelector('.cx'), x = X(xs[i]);
+      ln.setAttribute('x1', x); ln.setAttribute('x2', x); ln.setAttribute('visibility', 'visible');
+      tipShow(ui, tip, x, W, cfg.fmtX(xs[i]), cfg.series.map(function (s) { return { color: s.color, value: cfg.fmtY(s.values[i]), name: s.name }; }));
+    };
+    host.onpointermove = function (ev) {
+      var f = (ev.clientX - host.getBoundingClientRect().left - m.l) / pw;
+      at(Math.round(Math.max(0, Math.min(1, f)) * (xs.length - 1)));
+    };
+    host.onpointerleave = function () { tip.hidden = true; host.querySelector('.cx').setAttribute('visibility', 'hidden'); };
+  }
+  function scatter(ui, host, cfg) {
+    var W = Math.max(280, host.clientWidth), H = cfg.height || 280, m = { l: 64, r: 24, t: 14, b: 38 }, pw = W - m.l - m.r, ph = H - m.t - m.b, P = cfg.points, h = [];
+    var xlo = 0, xhi = 0, ylo = 0, yhi = 0;
+    P.forEach(function (p) { if (p.x > xhi) xhi = p.x; if (p.x < xlo) xlo = p.x; if (p.y > yhi) yhi = p.y; if (p.y < ylo) ylo = p.y; });
+    if (xhi === xlo) xhi = xlo + 1;
+    if (yhi === ylo) yhi = ylo + 1;
+    var xt = ui.niceTicks(xlo, xhi, 4), yt = ui.niceTicks(ylo, yhi, 4);
+    xlo = Math.min(xlo, xt[0]); xhi = Math.max(xhi, xt[xt.length - 1]); ylo = Math.min(ylo, yt[0]); yhi = Math.max(yhi, yt[yt.length - 1]);
+    var X = function (x) { return m.l + (x - xlo) / (xhi - xlo) * pw; }, Y = function (v) { return m.t + (yhi - v) / (yhi - ylo) * ph; };
+    h.push('<svg viewBox="0 0 ' + W + ' ' + H + '" height="' + H + '" font-family="var(--font)" font-size="11">');
+    yt.forEach(function (v) {
+      h.push('<line x1="' + m.l + '" x2="' + (m.l + pw) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="' + (v === 0 ? 'var(--muted)' : 'var(--grid)') + '"/>');
+      h.push('<text x="' + (m.l - 8) + '" y="' + (Y(v) + 3.5).toFixed(1) + '" text-anchor="end" fill="var(--muted)">' + cfg.fmtY(v) + '</text>');
+    });
+    xt.forEach(function (v) { h.push('<text x="' + X(v).toFixed(1) + '" y="' + (m.t + ph + 16) + '" text-anchor="middle" fill="var(--muted)">' + cfg.fmtX(v) + '</text>'); });
+    h.push('<text x="' + (m.l + pw) + '" y="' + (H - 4) + '" text-anchor="end" fill="var(--ink-2)">' + cfg.xName + '</text>');
+    h.push('<text x="' + m.l + '" y="' + (m.t - 3) + '" fill="var(--ink-2)">' + cfg.yName + '</text>');
+    P.forEach(function (p) {
+      var fill = p.kind === 'base' ? 'var(--ink)' : (p.kind === 'best' ? 'var(--s2)' : 'var(--s1)');
+      h.push('<circle cx="' + X(p.x).toFixed(1) + '" cy="' + Y(p.y).toFixed(1) + '" r="' + (p.kind ? 6 : 4.5) + '" fill="' + fill + '" stroke="var(--surface)" stroke-width="2"/>');
+      if (p.label) h.push('<text x="' + (X(p.x) + 9).toFixed(1) + '" y="' + (Y(p.y) - 7).toFixed(1) + '" fill="var(--ink-2)">' + p.label + '</text>');
+    });
+    h.push('</svg>');
+    var tip = tipOf(ui, host);
+    host.innerHTML = h.join('');
+    host.appendChild(tip);
+    host.onpointermove = function (ev) {
+      var r = host.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top, best = null, bd = 1e9;
+      P.forEach(function (p) { var d = Math.hypot(X(p.x) - px, Y(p.y) - py); if (d < bd) { bd = d; best = p; } });
+      if (!best || bd > 40) { tip.hidden = true; return; }
+      tipShow(ui, tip, X(best.x), W, best.title, best.rows);
+    };
+    host.onpointerleave = function () { tip.hidden = true; };
+  }
+  function draw(ui, res, code) {
+    var $ = ui.$, lead = res.lead[code], imp = res.impact[code], un = res.unhedged[code], lg = lead && lead.lag, box, body;
+    var names = { ALL: '전 종목' };
+    res.etfs.forEach(function (e) { names[e.code] = e.name; });
+    box = $('ln1Stats'); box.textContent = '';
+    if (lg) {
+      ui.stat(box, 'lead', '선물 → ETF 시차', sec(lg.fut.meanLag), '절반 ' + sec(lg.fut.t50, 0) + ' · 90% ' + sec(lg.fut.t90, 0), 'var(--s1)');
+      ui.stat(box, '', '환 → ETF 시차', sec(lg.fx.meanLag), '절반 ' + sec(lg.fx.t50, 0) + ' · 90% ' + sec(lg.fx.t90, 0), 'var(--s2)');
+      ui.stat(box, '', 'ETF 가 앞선 몫', pct(lg.fut.etfLead), '환 기준 ' + pct(lg.fx.etfLead));
+    }
+    var p3 = lead.pred.filter(function (p) { return p.h === 3; })[0];
+    ui.stat(box, '', '3초 뒤 방향 적중', pct(p3.hit), '움직인 표본 ' + ui.cnt(p3.nz));
+    if (lead.quote) ui.stat(box, '', '예측을 더 얹은 호가', ui.krw(lead.quote.pred, true), '기준 ' + ui.krw(lead.quote.base, true) + ' · 시험 구간');
+    $('ln1Chart').hidden = !lg;
+    if (lg) {
+      curve(ui, $('ln1Chart'), { xs: res.lags, height: 250, markX: 0, xTicks: [-5, 0, 5, 10, 15], fmtX: lagText, fmtY: function (v) { return v.toFixed(2); },
+        series: [{ name: '선물', color: 'var(--s1)', values: lg.bF }, { name: '환', color: 'var(--s2)', values: lg.bX }] });
+    }
+    body = ui.head($('ln1Pred'), ['예측 시간', '방향 적중', '설명력', '움직인 표본', '전체 표본']);
+    lead.pred.forEach(function (p) { ui.cells(body.insertRow(), [p.h + '초 뒤', pct(p.hit, 1), num(p.r2, 3), ui.cnt(p.nz), ui.cnt(p.n)]); });
+    box = $('ln2Stats'); box.textContent = '';
+    $('ln2Body').hidden = !un;
+    if (un) {
+      var w30 = un.waits.filter(function (w) { return w.W === res.waitMain; })[0];
+      ui.stat(box, '', ACT.A, ui.bp(un.mean.A), '손실 없음 ' + pct(un.pos.A));
+      ui.stat(box, 'lead', ACT.B + ' ' + res.waitMain + '초', ui.bp(un.mean.B), '손실 없음 ' + pct(un.pos.B) + ' · 우리 호가 체결 ' + pct(w30.fill), 'var(--s1)');
+      ui.stat(box, '', ACT.C, ui.bp(un.mean.C), '손실 없음 ' + pct(un.pos.C));
+      if (un.test) ui.stat(box, '', '상황별 규칙 · 시험', ui.bp(un.test.rule), '늘 헷지 ' + ui.bp(un.test.C) + ' · ' + ui.cnt(un.test.n) + '건 · ' + (un.split === 'day' ? '뒤 30% 날' : '뒤 40% 시간'));
+      ui.stat(box, '', '체결', ui.cnt(un.n) + '건', '흔들림 ' + num(un.sd.A) + ' · ' + num(un.sd.B) + ' · ' + num(un.sd.C) + 'bp');
+      body = ui.head($('ln2Waits'), ['대기 시간', '평균 손익', '우리 호가 체결']);
+      un.waits.forEach(function (w) { var row = body.insertRow(); if (w.W === res.waitMain) row.className = 'pick'; ui.cells(row, [w.W + '초', w.mean == null ? '–' : ui.bp(w.mean), pct(w.fill)]); });
+      body = ui.head($('ln2Cells'), ['호가폭', '선물 방향', '체결 단계', '건수', ACT.A, ACT.B, ACT.C, '나은 행동', '손실 없는 행동']);
+      un.cells.forEach(function (c) {
+        var safe = ['A', 'B', 'C'].filter(function (k) { return c[k] >= 0; }).map(function (k) { return ACT[k]; });
+        ui.cells(body.insertRow(), [SP[c.sp], MOM[c.mom], LV[c.lv], ui.cnt(c.n), ui.bp(c.A), ui.bp(c.B), ui.bp(c.C), ACT[c.best], safe.length ? safe.join(' · ') : '없음']);
+      });
+    }
+    box = $('ln3Stats'); box.textContent = '';
+    var h60 = imp.hz.filter(function (x) { return x.H === 60; })[0];
+    if (h60 && h60.bF != null) {
+      ui.stat(box, 'lead', '선물 영향도 · 60초', num(h60.bF), '설명한 몫 ' + pct(h60.sF), 'var(--s1)');
+      ui.stat(box, '', '환 영향도 · 60초', num(h60.bX), '설명한 몫 ' + pct(h60.sX), 'var(--s2)');
+      ui.stat(box, '', '나머지', pct(1 - h60.r2), '선물 · 환으로 설명 안 되는 몫');
+    }
+    var bars = $('ln3Bars'); bars.textContent = '';
+    ['ALL'].concat(res.etfs.map(function (e) { return e.code; })).forEach(function (k) {
+      var x = res.impact[k].hz.filter(function (v) { return v.H === 60; })[0];
+      if (!x || x.bF == null) return;
+      var row = ui.el('div', 'sbar-row' + (k === code ? ' pick' : '')), bar = ui.el('div', 'sbar'), parts = [[x.sF, 'var(--s1)'], [x.sX, 'var(--s2)'], [1 - x.r2, 'var(--bar)']];
+      parts.forEach(function (p) { var i = ui.el('i'); i.style.flex = Math.max(0, p[0]).toFixed(4) + ' 1 0'; i.style.setProperty('--c', p[1]); bar.appendChild(i); });
+      row.appendChild(ui.el('span', 'nm', names[k])); row.appendChild(bar);
+      row.appendChild(ui.el('span', 'num', '선물 ' + pct(x.sF) + ' · 환 ' + pct(x.sX) + ' · 나머지 ' + pct(1 - x.r2)));
+      bars.appendChild(row);
+    });
+    $('ln3Chart').hidden = !lg || !(lg.fut.total > 0.05);
+    if (!$('ln3Chart').hidden) {
+      var xs = lg.fut.cum.map(function (_, i) { return i; }), share = function (s) { return s.cum.map(function (v) { return s.total > 0.05 ? v / s.total : 0; }); };
+      curve(ui, $('ln3Chart'), { xs: xs, height: 230, xTicks: [0, 5, 10, 15], fmtX: function (v) { return v + '초'; }, fmtY: function (v) { return pct(v); },
+        series: [{ name: '선물', color: 'var(--s1)', values: share(lg.fut) }, { name: '환', color: 'var(--s2)', values: share(lg.fx) }] });
+    }
+    body = ui.head($('ln3Hz'), ['구간 길이', '선물', '환', '설명력', '선물 몫', '환 몫']);
+    imp.hz.forEach(function (x) { var row = body.insertRow(); if (x.H === 60) row.className = 'pick'; ui.cells(row, [x.H + '초', num(x.bF), num(x.bX), num(x.r2), pct(x.sF), pct(x.sX)]); });
+    body = ui.head($('ln3Hours'), ['시간대', '선물', '환', '설명력']);
+    imp.hours.forEach(function (x) { ui.cells(body.insertRow(), [x.hour + '시', num(x.bF), num(x.bX), num(x.r2)]); });
+    var hg = res.hedge, isBase = function (r) { return r.ratio === hg.base.ratio && r.close === hg.base.close; }, isBest = function (r) { return !!hg.best && r.ratio === hg.best.ratio && r.close === hg.best.close; };
+    var baseRow = hg.rows.filter(isBase)[0];
+    box = $('ln4Stats'); box.textContent = '';
+    ui.stat(box, 'lead', '기준 100% · ' + ui.clock(hg.base.close), ui.krw(baseRow.mean, true), '하루 평균 · 흔들림 ' + ui.krw(baseRow.risk, false));
+    ui.stat(box, '', '추천', hg.best ? hg.best.ratio + '% · ' + ui.clock(hg.best.close) : '보류', hg.best ? '평균 − 흔들림 최대' : '자료 ' + hg.days + '일 · ' + hg.minDays + '일부터');
+    ui.stat(box, '', '흔들림 기준', hg.riskKind === 'daily' ? '날짜별 표준편차' : '장중 10분 변화', '자료 ' + hg.days + '일');
+    scatter(ui, $('ln4Chart'), { height: 290, xName: '흔들림', yName: '비용 절감', fmtX: function (v) { return ui.krw(v, false); }, fmtY: function (v) { return ui.krw(v, true); },
+      points: hg.rows.map(function (r) {
+        return { x: r.risk, y: r.saving, kind: isBase(r) ? 'base' : (isBest(r) ? 'best' : ''), label: r.close === hg.base.close ? r.ratio + '%' : '', title: r.ratio + '% · ' + ui.clock(r.close),
+          rows: [{ name: '비용 절감', value: ui.krw(r.saving, true) }, { name: '흔들림', value: ui.krw(r.risk, false) }, { name: '방향 손익', value: ui.krw(r.direction, true) }, { name: '평균 손익', value: ui.krw(r.mean, true) }] };
+      }) });
+    body = ui.head($('ln4Table'), ['헷지비율', '잔량 헷지', '평균 손익', '비용 절감', '방향 손익', '흔들림', '최대 낙폭', '평균 − 흔들림']);
+    hg.rows.forEach(function (r) {
+      var row = body.insertRow(); if (isBase(r) || isBest(r)) row.className = 'pick';
+      ui.cells(row, [r.ratio + '%', ui.clock(r.close), ui.krw(r.mean, true), ui.krw(r.saving, true), ui.krw(r.direction, true), ui.krw(r.risk, false), ui.krw(r.mdd, false), ui.krw(r.score, true)]);
+    });
+  }
+  root.LearnView = { draw: draw };
+})(window);
+</script>
+<script>
 (function () {
   'use strict';
-  var S = window.HedgeSim, L = window.TickZip, G = window.TickGit;
+  var S = window.HedgeSim, L = window.TickZip, G = window.TickGit, Seal = window.Seal, LearnView = window.LearnView;
   var DS = null;        
   var qsCache = {};
-  var T_START = 60, T_END = 22740, STEP = 10, LEVELS = 2, FEE_USD = 1;
+  var STEP = S.FIX.step, LEVELS = S.FIX.levels, FEE_USD = S.FIX.feeUsd;
   var DISTS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 5], LAGS = [0, 0.5, 1, 2, 3, 5], RATIOS = [100, 95, 90, 85, 80];
   var CLOSES = [19800, 21600, 22200, 22500];   
   var HMODES = ['선물 시장가 · 상대 1호가', '선물 자기 1호가 · 찍히면 체결', '선물 자기 1호가 · 지나가야 체결', 'ETF 즉시 반대매매 · 헷지 없음'];
@@ -980,24 +1295,6 @@ tr.gap td { color: var(--muted); text-align: center; }
   HMODES.forEach(function (t, i) { var o = el('option', null, t); o.value = i; $('hmode').appendChild(o); });
   WAITS.forEach(function (t) { var o = el('option', null, t + '초'); o.value = t; o.selected = t === 10; $('wait').appendChild(o); });
   var last = null;
-  function recOf(e, basis) {
-    if (!e.rec) return null;
-    return e.rec[basis] || (e.needRec ? (e.rec.d || e.rec.i) : null) || null;
-  }
-  function paramsOf(e, c) {
-    var rec = recOf(e, c.basis), key = e.code + (rec ? c.basis : 'm'), fut = DS.fut[e.fut], usd = DS.usd.s;
-    var p = { mult: fut.mult, lagQ: c.lagQ, lagF: c.lagF, lagU: c.lagU, tStart: T_START, tEnd: T_END, step: STEP,
-      rec: rec, level: 1, adj: 0, dist: c.dist / 1e4, levels: LEVELS, qty: 1, fxLots: 1, feeUsd: FEE_USD,
-      ratioF: c.ratioF / 100, ratioU: c.ratioU / 100, tClose: c.tClose, hmode: c.hmode, wait: c.wait };
-    if (!qsCache[key]) {
-      var qs = S.quoteStats(e.s, fut.s, usd, p);
-      p.level = qs.level;
-      qsCache[key] = { qs: qs, lots: S.hedgeLots(e.s, fut.s, usd, p) };
-    }
-    var q = qsCache[key];
-    p.level = q.qs.level; p.qty = q.lots.qty; p.fxLots = q.lots.fxLots; p.adj = c.adjBp / 1e4;
-    return { p: p, qs: q.qs, lots: q.lots, rec: !!rec };
-  }
   function sim(e, base, over) {
     var p = {}, k;
     for (k in base) p[k] = base[k];
@@ -1014,7 +1311,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     $('ratioFo').textContent = c.ratioF + '%'; $('ratioUo').textContent = c.ratioU + '%';
     $('lagQo').textContent = c.lagQ.toFixed(1) + '초'; $('lagFo').textContent = c.lagF.toFixed(1) + '초'; $('lagUo').textContent = c.lagU.toFixed(1) + '초';
     $('adjo').textContent = bp(c.adjBp, 1);
-    var cur = paramsOf(e, c);
+    var cur = S.paramsOf(DS, e, c, qsCache);
     var sweep = DISTS.map(function (d) { return sim(e, cur.p, { dist: d / 1e4 }); });
     var r = sweep[+distSel.value];
     var lags = LAGS.map(function (q) { return q === c.lagQ ? r : sim(e, cur.p, { lagQ: q }); });
@@ -1022,7 +1319,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     var modes = MODES.map(function (m) { return m[0] === c.hmode && (!m[1] || m[1] === c.wait) ? r : sim(e, cur.p, { hmode: m[0], wait: m[1] || c.wait }); });
     var all = DS.etf.map(function (x) {
       if (x.code === e.code) return { e: x, lots: cur.lots, qs: cur.qs, r: r };
-      var o = paramsOf(x, c);
+      var o = S.paramsOf(DS, x, c, qsCache);
       return { e: x, lots: o.lots, qs: o.qs, r: S.simulate(x.s, DS.fut[x.fut].s, DS.usd.s, o.p) };
     });
     last = { e: e, c: c, cur: cur, r: r, sweep: sweep, lags: lags, ratios: ratios, modes: modes, all: all };
@@ -1510,7 +1807,70 @@ tr.gap td { color: var(--muted); text-align: center; }
     $(id).addEventListener('input', function () { clearTimeout(raf); raf = setTimeout(run, 120); });
   });
   var rz = 0;
-  window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { if (last) { draw(); rpDraw(); } }, 120); });
+  window.addEventListener('resize', function () {
+    clearTimeout(rz);
+    rz = setTimeout(function () { if (!$('viewLearn').hidden) lnDraw(); else if (last) { draw(); rpDraw(); } }, 120);
+  });
+  var ui = { $: $, el: el, krw: krw, bp: bp, cnt: cnt, clock: clock, head: head, cells: cells, stat: stat, niceTicks: niceTicks };
+  var learn = { pass: null, res: null, timer: 0, seq: 0 };
+  function lnStatus(text, err) { var s = $('lnStatus'); s.textContent = text; s.classList.toggle('err', !!err); }
+  function lnLock() {
+    learn.pass = null; learn.res = null; learn.seq++; clearTimeout(learn.timer);
+    $('lnBody').hidden = true; $('lnRefresh').hidden = true; $('lnEtfCtl').hidden = true;
+    $('lnPassCtl').hidden = false; $('lnOpen').hidden = false; $('lnPass').value = '';
+    lnStatus(git ? '' : '깃 연결 필요 · 시뮬레이터 탭', !git);
+  }
+  function lnDraw() { if (learn.res) LearnView.draw(ui, learn.res, $('lnEtf').value || 'ALL'); }
+  async function lnLoad() {
+    var mine = ++learn.seq, pass = learn.pass;
+    clearTimeout(learn.timer);
+    if (!git) { lnStatus('깃 연결 필요 · 시뮬레이터 탭', true); return; }
+    lnStatus('학습 결과 읽는 중');
+    try {
+      var texts = await Promise.all([G.fetchText(git, 'learn/result.json'), G.fetchText(git, 'learn/status.json')]);
+      if (mine !== learn.seq) return;
+      if (!texts[0] && !texts[1]) { lnStatus('학습 결과 없음', true); return; }
+      var st = texts[1] ? JSON.parse(await Seal.open(JSON.parse(texts[1]), pass)) : null;
+      var res = texts[0] ? JSON.parse(await Seal.open(JSON.parse(texts[0]), pass)) : null;
+      if (mine !== learn.seq) return;
+      learn.res = res;
+      $('lnPassCtl').hidden = true; $('lnOpen').hidden = true; $('lnRefresh').hidden = false;
+      var running = !!st && st.state === 'running', parts = [];
+      if (running) parts.push('학습 중 · 묶음 ' + st.done + ' / ' + st.total + ' · 시작 ' + st.started);
+      if (res) {
+        var pick = $('lnEtf'), keep = pick.value, all = el('option', null, '전 종목'), c = res.cond;
+        pick.textContent = ''; all.value = 'ALL'; pick.appendChild(all);
+        res.etfs.forEach(function (e) { var o = el('option', null, e.name + ' (' + e.code + ')'); o.value = e.code; pick.appendChild(o); });
+        if (res.lead[keep]) pick.value = keep;
+        $('lnEtfCtl').hidden = false; $('lnBody').hidden = false;
+        lnDraw();
+        parts.push('학습 ' + res.made + ' · 자료 ' + res.days.length + '일 · ' + res.days[0] + ' ~ ' + res.days[res.days.length - 1]);
+        parts.push('호가 간격 ' + c.dist + 'bp · 주문 지연 ' + c.lagF + ' · ' + c.lagU + '초 · ' + HMODES[c.hmode]);
+      }
+      lnStatus(parts.join(' · '));
+      if (running) learn.timer = setTimeout(lnLoad, 60000);
+    } catch (err) {
+      if (mine !== learn.seq) return;
+      if (/비밀번호/.test(err.message)) { learn.pass = null; $('lnPass').value = ''; }
+      lnStatus(err.message, true);
+    }
+  }
+  $('lnForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!$('lnPass').value) { lnStatus('비밀번호 필요', true); return; }
+    learn.pass = $('lnPass').value;
+    lnLoad();
+  });
+  $('lnRefresh').addEventListener('click', function () { if (learn.pass) lnLoad(); });
+  $('lnEtf').addEventListener('change', lnDraw);
+  function showTab(isLearn) {
+    $('tabSim').setAttribute('aria-selected', isLearn ? 'false' : 'true'); $('tabLearn').setAttribute('aria-selected', isLearn ? 'true' : 'false');
+    $('viewSim').hidden = isLearn; $('viewLearn').hidden = !isLearn;
+    lnLock();
+    if (isLearn) { rpStop(); $('lnPass').focus(); } else if (last) { draw(); rpDraw(); }
+  }
+  $('tabSim').addEventListener('click', function () { showTab(false); });
+  $('tabLearn').addEventListener('click', function () { showTab(true); });
   var sample = $('tickdata').textContent.trim();
   if (sample) { setData(fromSample(JSON.parse(sample))); status('내장 표본 ' + DS.day); } else $('empty').hidden = false;
   var hash = new URLSearchParams(location.hash.slice(1)), preset = G.parseRepo(hash.get('repo'));
