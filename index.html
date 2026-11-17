@@ -1,0 +1,1526 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://api.github.com; base-uri 'none'; form-action 'none'">
+<title>즉시 헷지 시뮬레이터</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root {
+  --bg: #f3f4f6; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #7d7c75;
+  --rule: #dcdbd6; --grid: #ebeae6; --s1: #2a78d6; --s2: #eb6834; --bar: #a09f97; --bar-strong: #3b3b38;
+  --band: #e6e5df; --pick: #eef0f3; --err: #b42318;
+  --font: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111110; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #94938b;
+    --rule: #34342f; --grid: #2a2a27; --s1: #3987e5; --s2: #d95926; --bar: #77766e; --bar-strong: #d6d5cc;
+    --band: #2b2b28; --pick: #232422; --err: #f97066;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111110; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #94938b;
+  --rule: #34342f; --grid: #2a2a27; --s1: #3987e5; --s2: #d95926; --bar: #77766e; --bar-strong: #d6d5cc;
+  --band: #2b2b28; --pick: #232422; --err: #f97066;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 14px; line-height: 1.5; }
+.wrap, .main { display: flex; flex-direction: column; gap: 16px; }
+.wrap {
+  max-width: 1100px; margin: 0 auto; padding-block: 22px 44px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.num { font-variant-numeric: tabular-nums; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.meta { color: var(--muted); font-size: 12.5px; }
+h2 { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: var(--ink-2); }
+.load { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.load label { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.load .meta { min-width: 0; overflow-wrap: anywhere; }
+.load .meta.err { color: var(--err); }
+.notes { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; color: var(--ink-2); }
+.empty { text-align: center; padding: 48px 16px; color: var(--ink-2); }
+body.drag .wrap { outline: 2px dashed var(--s1); outline-offset: -8px; border-radius: 8px; }
+.gitform input {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 5px;
+  padding: 6px 10px; min-width: 0; max-width: 100%;
+}
+.gitform input:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+#gitRepo { width: 210px; }
+#gitBranch { width: 90px; }
+#gitToken { width: 250px; }
+.controls { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: flex-end; }
+.ctl { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ctl > label, .ctl > .lab { font-size: 12px; color: var(--muted); }
+select {
+  font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 5px;
+  padding: 6px 28px 6px 10px; max-width: 100%;
+}
+.slider { display: flex; align-items: center; gap: 10px; height: 34px; }
+.slider input { width: 132px; max-width: 46vw; accent-color: var(--s1); }
+.slider output { min-width: 56px; text-align: right; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 5px; overflow: hidden; background: var(--surface); }
+.seg label { padding: 6px 12px; font-size: 13px; cursor: pointer; color: var(--ink-2); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label:has(input:checked) { background: var(--ink); color: var(--surface); }
+.seg label:has(input:focus-visible), select:focus-visible, .slider input:focus-visible, .chart:focus-visible {
+  outline: 2px solid var(--s1); outline-offset: 2px;
+}
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: 14px 18px; padding: 4px 0 2px; }
+.stat { min-width: 0; }
+.stat .k { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.stat .v { font-size: 19px; font-weight: 500; white-space: nowrap; }
+.stat.lead .v { font-size: 30px; font-weight: 600; line-height: 1.15; }
+.stat .s { font-size: 12px; color: var(--ink-2); }
+.key { display: inline-block; width: 14px; height: 0; border-top: 2px solid var(--c); border-radius: 1px; flex: none; }
+.swatch { display: inline-block; width: 14px; height: 10px; background: var(--band); border: 1px solid var(--rule); border-radius: 2px; flex: none; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px 12px; min-width: 0; }
+.two { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 16px; }
+@media (max-width: 860px) { .two { grid-template-columns: minmax(0, 1fr); } }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 4px; }
+.legend span.item { display: inline-flex; align-items: center; gap: 6px; }
+.chart { position: relative; outline-offset: 2px; }
+.chart svg { display: block; width: 100%; font-variant-numeric: tabular-nums; }
+.tip {
+  position: absolute; top: 8px; pointer-events: none; background: var(--surface); border: 1px solid var(--rule); border-radius: 5px;
+  padding: 7px 10px; font-size: 12px; white-space: nowrap; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12); z-index: 2;
+}
+.tip .t { color: var(--muted); margin-bottom: 3px; }
+.tip .r { display: flex; align-items: center; gap: 7px; }
+.tip .r b { font-weight: 600; min-width: 62px; text-align: right; }
+.tip .r span.n { color: var(--ink-2); }
+.tscroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+td { padding: 5px 8px; text-align: right; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; padding-left: 0; }
+th:last-child, td:last-child { padding-right: 0; }
+tr.pick td { background: var(--pick); font-weight: 600; }
+tr.pick td:first-child { box-shadow: -8px 0 0 var(--pick); }
+tr.pick td:last-child { box-shadow: 8px 0 0 var(--pick); }
+tr.sum td { border-top: 1px solid var(--rule); border-bottom: 0; font-weight: 600; }
+.scroll { max-height: 348px; overflow: auto; }
+.scroll thead th { position: sticky; top: 0; background: var(--surface); }
+.btn {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 1px solid var(--rule); border-radius: 5px;
+  padding: 6px 12px; cursor: pointer; white-space: nowrap;
+}
+.btn:focus-visible, #rpT:focus-visible { outline: 2px solid var(--s1); outline-offset: 2px; }
+.btn[aria-pressed="true"], .btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.btn:disabled { opacity: 0.55; cursor: default; }
+.rp-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
+.rp-bar input[type="range"] { flex: 1 1 220px; min-width: 160px; accent-color: var(--s1); }
+.rp-bar output { min-width: 68px; text-align: right; font-size: 15px; font-weight: 600; }
+.boards { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(0, 4fr); gap: 14px; }
+@media (max-width: 860px) { .boards { grid-template-columns: minmax(0, 1fr); } }
+.board { border: 1px solid var(--rule); border-radius: 5px; padding: 10px 12px; min-width: 0; }
+.board h3 { font-size: 12.5px; font-weight: 600; margin: 0; color: var(--ink); }
+.rp-sub { font-size: 12px; color: var(--ink-2); margin: 2px 0 8px; min-height: 18px; }
+.board table { font-size: 12.5px; }
+.board td { padding: 3px 6px; height: 25px; }
+.board td:first-child { color: var(--ink-2); padding-left: 6px; }
+.board td:last-child { padding-right: 6px; }
+.ladder td:nth-child(2) { text-align: center; }
+.ladder td:nth-child(3) { text-align: right; min-width: 92px; }
+tr.q-ask td { box-shadow: inset 3px 0 0 var(--s2); }
+tr.q-bid td { box-shadow: inset 3px 0 0 var(--s1); }
+tr.q-ask td ~ td, tr.q-bid td ~ td { box-shadow: none; }
+tr.cur td { background: var(--pick); font-weight: 600; }
+tr.hit td { background: var(--band); font-weight: 600; }
+tr.deep td { color: var(--ink-2); }
+tr.rnav td { color: var(--muted); font-size: 11.5px; text-align: center; border-bottom: 1px dashed var(--muted); height: 20px; padding: 1px 6px; }
+tr.gap td { color: var(--muted); text-align: center; }
+.qb td:first-child { width: 42%; }
+.rp-stats { margin: 12px 0 8px; }
+.two.wideleft { grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); }
+@media (max-width: 860px) { .two.wideleft { grid-template-columns: minmax(0, 1fr); } }
+.hbar { position: relative; height: 10px; min-width: 70px; }
+.hbar i { position: absolute; left: 0; top: 0; height: 10px; min-width: 1px; border-radius: 0 4px 4px 0; background: var(--c); }
+#pos td:nth-child(2), #depth td:nth-child(2) { width: 46%; }
+.rp-stats .stat .v { font-size: 16px; }
+.basis { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 4px 22px; font-size: 12.5px; color: var(--ink-2); }
+.basis b { font-weight: 500; color: var(--muted); margin-right: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>즉시 헷지 시뮬레이터</h1>
+    <span class="meta num" id="meta"></span>
+  </header>
+  <section class="load" aria-label="자료">
+    <button type="button" class="btn primary" id="open">자료 열기</button>
+    <input type="file" id="zipIn" accept=".zip,application/zip" multiple hidden>
+    <label id="dayCtl" hidden>날짜 <select id="day"></select></label>
+    <button type="button" class="btn" id="gitBtn" aria-pressed="false">깃 연결</button>
+    <label id="gitPickCtl" hidden>깃 자료 <select id="gitPick"></select></label>
+    <span class="meta num" id="status" role="status" aria-live="polite"></span>
+  </section>
+  <form class="load gitform" id="gitForm" aria-label="깃 연결" hidden>
+    <label>저장소 <input type="text" id="gitRepo" placeholder="소유자/저장소" autocomplete="off" spellcheck="false"></label>
+    <label>가지 <input type="text" id="gitBranch" autocomplete="off" spellcheck="false"></label>
+    <label>열쇠 <input type="password" id="gitToken" autocomplete="off"></label>
+    <button type="submit" class="btn primary">연결</button>
+    <button type="button" class="btn" id="gitForget">연결 해제</button>
+  </form>
+  <ul class="notes" id="notes" hidden></ul>
+  <section class="panel empty" id="empty" hidden>틱 CSV zip · 자료 열기 · 끌어 놓기 · 깃 연결</section>
+  <div class="main" id="main" hidden>
+  <section class="controls" aria-label="조건">
+    <div class="ctl"><label for="etf">종목</label><select id="etf"></select></div>
+    <div class="ctl"><span class="lab" id="basislab">호가 기준</span>
+      <div class="seg" role="radiogroup" aria-labelledby="basislab">
+        <label><input type="radio" name="basis" id="basisD" value="d" checked>rNAV 분해</label>
+        <label><input type="radio" name="basis" id="basisI" value="i">rNAV 지수형</label>
+      </div>
+    </div>
+    <div class="ctl"><label for="dist">호가 간격(rNAV 대비)</label><select id="dist"></select></div>
+    <div class="ctl"><label for="lagQ">호가 갱신 지연</label>
+      <div class="slider"><input type="range" id="lagQ" min="0" max="5" step="0.5" value="0"><output class="num" id="lagQo" for="lagQ"></output></div>
+    </div>
+    <div class="ctl"><label for="lagF">지수선물 주문 지연(한투)</label>
+      <div class="slider"><input type="range" id="lagF" min="0" max="15" step="0.5" value="3"><output class="num" id="lagFo" for="lagF"></output></div>
+    </div>
+    <div class="ctl"><label for="lagU">달러선물 주문 지연(K-front)</label>
+      <div class="slider"><input type="range" id="lagU" min="0" max="15" step="0.5" value="3"><output class="num" id="lagUo" for="lagU"></output></div>
+    </div>
+    <div class="ctl"><label for="adj">rNAV 조정</label>
+      <div class="slider"><input type="range" id="adj" min="-6" max="6" step="0.5" value="0"><output class="num" id="adjo" for="adj"></output></div>
+    </div>
+    <div class="ctl"><label for="ratioF">지수 헷지비율</label>
+      <div class="slider"><input type="range" id="ratioF" min="50" max="100" step="5" value="100"><output class="num" id="ratioFo" for="ratioF"></output></div>
+    </div>
+    <div class="ctl"><label for="ratioU">환 헷지비율</label>
+      <div class="slider"><input type="range" id="ratioU" min="50" max="100" step="5" value="100"><output class="num" id="ratioUo" for="ratioU"></output></div>
+    </div>
+    <div class="ctl"><label for="tClose">잔여 헷지 시각</label><select id="tClose"></select></div>
+    <div class="ctl"><label for="hmode">헷지 방식</label><select id="hmode"></select></div>
+    <div class="ctl"><label for="wait">지정가 대기</label><select id="wait"></select></div>
+  </section>
+  <section class="stats" id="stats" aria-label="결과"></section>
+  <section class="panel">
+    <h2>시장 흐름</h2>
+    <div class="rp-bar">
+      <button type="button" class="btn" id="rpPlay" aria-pressed="false">재생</button>
+      <button type="button" class="btn" id="rpStop">멈춤</button>
+      <button type="button" class="btn" id="rpHome">처음</button>
+      <div class="seg" role="radiogroup" aria-label="재생 속도" id="rpSpeed"></div>
+      <button type="button" class="btn" id="rpPrev">이전 체결</button>
+      <button type="button" class="btn" id="rpNext">다음 체결</button>
+      <input type="range" id="rpT" step="1" aria-label="시각">
+      <output class="num" id="rpClock" for="rpT"></output>
+    </div>
+    <div class="boards">
+      <div class="board"><h3 id="rpEtfName"></h3><div class="rp-sub num" id="rpEtfSub"></div><table class="ladder" id="rpEtf"></table></div>
+      <div class="board"><h3 id="rpFutName"></h3><div class="rp-sub num" id="rpFutSub"></div><table class="qb" id="rpFut"></table></div>
+      <div class="board"><h3>달러선물</h3><div class="rp-sub num" id="rpUsdSub"></div><table class="qb" id="rpUsd"></table></div>
+    </div>
+    <div class="stats rp-stats" id="rpStats"></div>
+    <div class="tscroll"><table id="rpLog"></table></div>
+  </section>
+  <div class="two wideleft">
+  <section class="panel">
+    <h2>rNAV 대비 시장 호가 · 1분 평균</h2>
+    <div class="legend">
+      <span class="item"><span class="key" style="--c: var(--s2)"></span>매도1</span>
+      <span class="item"><span class="key" style="--c: var(--s1)"></span>매수1</span>
+      <span class="item" id="bandItem"><span class="swatch"></span><span id="bandlab"></span></span>
+    </div>
+    <div class="chart" id="quote" tabindex="0" role="img" aria-label="rNAV 대비 시장 매도1 · 매수1 선 차트"></div>
+  </section>
+  <section class="panel">
+    <h2 id="posTitle">시장 1호가 위치</h2>
+    <div class="tscroll"><table id="pos"></table></div>
+  </section>
+  </div>
+  <section class="panel" id="depthPanel" hidden>
+    <h2 id="depthTitle">호가 잔량 분포</h2>
+    <div class="tscroll"><table id="depth"></table></div>
+  </section>
+  <div class="two">
+    <section class="panel">
+      <h2>손익 인식</h2>
+      <div class="tscroll"><table id="recog"></table></div>
+    </section>
+    <section class="panel">
+      <h2>호가 갱신 지연별</h2>
+      <div class="tscroll"><table id="lags"></table></div>
+    </section>
+  </div>
+  <section class="panel">
+    <h2>호가 간격별</h2>
+    <div class="tscroll"><table id="sweep"></table></div>
+  </section>
+  <section class="panel">
+    <h2>헷지 방식별</h2>
+    <div class="tscroll"><table id="modes"></table></div>
+  </section>
+  <section class="panel">
+    <h2>헷지비율별 · 지수 · 환 같은 비율</h2>
+    <div class="tscroll"><table id="ratios"></table></div>
+  </section>
+  <section class="panel">
+    <h2>누적 손익</h2>
+    <div class="legend">
+      <span class="item"><span class="key" style="--c: var(--s1)"></span>합계</span>
+      <span class="item"><span class="key" style="--c: var(--s2)"></span>확정 손익</span>
+    </div>
+    <div class="chart" id="pnl" tabindex="0" role="img" aria-label="누적 손익 선 차트"></div>
+  </section>
+  <section class="panel">
+    <h2>종목별</h2>
+    <div class="tscroll"><table id="all"></table></div>
+  </section>
+  <section class="panel">
+    <h2 id="fillsTitle">체결 내역</h2>
+    <div class="scroll" style="overflow-x:auto"><table id="fills"></table></div>
+  </section>
+  <section class="panel">
+    <h2>기준</h2>
+    <ul class="basis" id="basis"></ul>
+  </section>
+  </div>
+</div>
+<script type="application/json" id="tickdata"></script>
+<script>
+(function (root) {
+  'use strict';
+  var USD_MULT = 10000;
+  function undelta(a, div) {
+    var o = new Float64Array(a.length), s = 0;
+    for (var i = 0; i < a.length; i++) { s += a[i]; o[i] = s / div; }
+    return o;
+  }
+  function decode(s, scale) {
+    return { n: s.n, t: undelta(s.t, 10), l: undelta(s.l, scale), b: undelta(s.b, scale), a: undelta(s.a, scale) };
+  }
+  function decodeSeries(s) {
+    return { n: s.n, t: undelta(s.t, 10), v: undelta(s.v, 100) };
+  }
+  function idxAt(tArr, t) {
+    var lo = 0, hi = tArr.length - 1;
+    if (t <= tArr[0]) return 0;
+    if (t >= tArr[hi]) return hi;
+    while (lo < hi) {
+      var mid = (lo + hi + 1) >> 1;
+      if (tArr[mid] <= t) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+  function midAt(s, t) { var i = idxAt(s.t, t); return (s.b[i] + s.a[i]) / 2; }
+  function tickOf(price) { return price < 2000 ? 1 : 5; }
+  function rnavAt(p, fut, usd, t) {
+    var v = p.rec ? p.rec.v[idxAt(p.rec.t, t)] : p.level * midAt(fut, t) * midAt(usd, t);
+    return v * (1 + p.adj);
+  }
+  function quotesAt(p, fut, usd, t) {
+    var r = rnavAt(p, fut, usd, t - p.lagQ), tick = tickOf(r);
+    var bid1 = Math.floor(r * (1 - p.dist) / tick) * tick, ask1 = Math.ceil(r * (1 + p.dist) / tick) * tick;
+    if (ask1 <= bid1) ask1 = bid1 + tick;
+    return { r: r, tick: tick, bid1: bid1, ask1: ask1 };
+  }
+  function spanOf(etf, fut, usd, p) {
+    var t0 = Math.max(p.tStart, etf.t[0], fut.t[0], usd.t[0], p.rec ? p.rec.t[0] : p.tStart);
+    var recEnd = p.rec && p.rec.end != null ? p.rec.end : Infinity;
+    return { t0: t0, t1: Math.min(p.tEnd, etf.t[etf.n - 1], fut.t[fut.n - 1], usd.t[usd.n - 1], recEnd) };
+  }
+  function quoteStats(etf, fut, usd, p) {
+    var sp = spanOf(etf, fut, usd, p), ie = 0, n = 0, ratio = 0, spread = 0;
+    var q = { rec: p.rec, level: 1, adj: 0 };
+    for (var T = sp.t0; T <= sp.t1; T += p.step) {
+      while (ie < etf.n - 1 && etf.t[ie + 1] <= T) ie++;
+      var M = (etf.b[ie] + etf.a[ie]) / 2;
+      ratio += M / rnavAt(q, fut, usd, T); spread += (etf.a[ie] - etf.b[ie]) / M; n++;
+    }
+    return { level: p.rec ? 1 : ratio / n, spread: spread / n, prem: p.rec ? ratio / n - 1 : 0 };
+  }
+  function hedgeLots(etf, fut, usd, p) {
+    var t0 = spanOf(etf, fut, usd, p).t0, G = midAt(fut, t0), X = midAt(usd, t0), P = rnavAt(p, fut, usd, t0);
+    return { qty: Math.max(1, Math.round(p.mult * G * X / P)), fxLots: USD_MULT * X / P, price: P, fut: G, fx: X };
+  }
+  function trunc0(x) { return x < 0 ? Math.ceil(x - 1e-9) : Math.floor(x + 1e-9); }
+  function recog(a, mark) {
+    var avgB = a.bq ? a.ba / a.bq : 0, avgS = a.sq ? a.sa / a.sq : 0, net = a.bq - a.sq;
+    return {
+      real: Math.min(a.bq, a.sq) * (avgS - avgB),
+      unreal: net > 0 ? net * (mark - avgB) : (net < 0 ? -net * (avgS - mark) : 0),
+      net: net, avgB: avgB, avgS: avgS, bq: a.bq, sq: a.sq
+    };
+  }
+  function stateAt(sim, fut, usd, p, T) {
+    var ev = sim.ev, lo = 0, hi = ev.length;
+    while (lo < hi) { var m = (lo + hi) >> 1; if (ev[m].t <= T) lo = m + 1; else hi = m; }
+    var c = sim.cum, o = lo * 12, b = [];
+    for (var k = 0; k < 3; k++) b.push({ bq: c[o + k * 4], ba: c[o + k * 4 + 1], sq: c[o + k * 4 + 2], sa: c[o + k * 4 + 3] });
+    var G = midAt(fut, T), X = midAt(usd, T), nav = rnavAt(p, fut, usd, T), kF = p.mult * X;
+    var re = recog(b[0], nav), rf = recog(b[1], G), ru = recog(b[2], X);
+    var fee = (b[1].bq + b[1].sq) * p.feeUsd * X;
+    var parts = {
+      etf: { real: re.real, unreal: re.unreal },
+      fut: { real: kF * rf.real, unreal: kF * rf.unreal },
+      usd: { real: USD_MULT * ru.real, unreal: USD_MULT * ru.unreal },
+      fee: { real: -fee, unreal: 0 }
+    };
+    var realized = parts.etf.real + parts.fut.real + parts.usd.real - fee, unreal = parts.etf.unreal + parts.fut.unreal + parts.usd.unreal;
+    return { n: lo, nav: nav, G: G, X: X, etf: re, fut: rf, usd: ru, fee: fee, parts: parts,
+      realized: realized, unreal: unreal, total: realized + unreal };
+  }
+  function simulate(etf, fut, usd, p) {
+    var mult = p.mult, sp = spanOf(etf, fut, usd, p), tEnd = sp.t1;
+    var tFill = p.hmode === 3 ? tEnd - p.lagQ
+      : tEnd - Math.max(p.lagF, p.lagU) * (p.hmode ? 2 : 1) - (p.hmode ? p.wait : 0);
+    var fills = [], ev = [], orders = [], nb = 0, ns = 0, spF = 0, spU = 0, k, j;
+    var net = 0, hedged = [0, 0, 0], closed = false, nLim = 0, nChase = 0, fillAmt = 0;
+    function order(t, kind, n, close) {
+      if (!n) return null;
+      var s2 = kind === 1 ? fut : usd, lag = kind === 1 ? p.lagF : p.lagU, tp = t + lag, i = idxAt(s2.t, tp);
+      var o = { t0: t, tp: tp, t: tp, k: kind, n: n, x: 0, g1: 0, close: !!close, lim: null, how: 0 };
+      if (p.hmode) {
+        var L = n > 0 ? s2.b[i] : s2.a[i], tx = tp + p.wait, hit = -1, m;
+        o.lim = L;
+        for (m = i + 1; m < s2.n && s2.t[m] <= tx; m++) {
+          var print = s2.l[m] !== s2.l[m - 1];   
+          var through = n > 0 ? (s2.a[m] <= L || (print && s2.l[m] < L)) : (s2.b[m] >= L || (print && s2.l[m] > L));
+          var touch = p.hmode === 1 && (n > 0 ? ((print && s2.l[m] <= L) || s2.b[m] < L) : ((print && s2.l[m] >= L) || s2.a[m] > L));
+          if (through || touch) { hit = m; break; }
+        }
+        if (hit >= 0) { o.t = s2.t[hit]; o.x = L; o.g1 = (s2.b[hit] + s2.a[hit]) / 2; o.how = 1; }
+        else { o.t = tx + lag; i = idxAt(s2.t, o.t); o.how = 2; }
+      }
+      if (o.how !== 1) { o.x = n < 0 ? s2.b[i] : s2.a[i]; o.g1 = (s2.b[i] + s2.a[i]) / 2; }
+      hedged[kind] += n;
+      if (o.how === 1) nLim += Math.abs(n); else if (o.how === 2) nChase += Math.abs(n);
+      if (kind === 1) spF += n * mult * (o.g1 - o.x); else spU += n * USD_MULT * (o.g1 - o.x);
+      orders.push(o); ev.push({ t: o.t, k: kind, n: n, x: o.x, o: o });
+      return o;
+    }
+    function rehedge(t, rF, rU, close) {
+      return [order(t, 1, -trunc0(net * rF / p.qty) - hedged[1], close), order(t, 2, -trunc0(net * rU / p.fxLots) - hedged[2], close)];
+    }
+    for (k = 1; k < etf.n; k++) {
+      var t = etf.t[k];
+      if (t < sp.t0 || t > tFill) continue;
+      var px = etf.l[k];
+      if (px === etf.l[k - 1]) continue;            
+      if (!closed && t > p.tClose) { closed = true; rehedge(p.tClose, 1, 1, true); }
+      var q = quotesAt(p, fut, usd, t), tick = q.tick;
+      var s = 0, lv = 0, base = 0;
+      if (px >= q.ask1) { s = -1; lv = px >= q.ask1 + tick ? 2 : 1; base = q.ask1; }      
+      else if (px <= q.bid1) { s = 1; lv = px <= q.bid1 - tick ? 2 : 1; base = q.bid1; }  
+      if (!s) continue;
+      if (lv > p.levels) lv = p.levels;
+      for (j = 0; j < lv; j++) {
+        var f = { t: t, s: s, lv: j + 1, p: base - s * j * tick, q: p.qty, r: q.r, f: null, u: null, x: null };
+        fills.push(f);
+        if (s > 0) nb++; else ns++;
+        ev.push({ t: t, k: 0, n: s * p.qty, x: f.p, f: f });
+        fillAmt += p.qty * f.p;
+        if (p.hmode === 3) {
+          var tx2 = t + p.lagQ, ix = idxAt(etf.t, tx2);
+          f.x = { t: tx2, n: -s * p.qty, x: s > 0 ? etf.b[ix] : etf.a[ix] };
+          ev.push({ t: tx2, k: 0, n: f.x.n, x: f.x.x, f: f, flat: true });
+          continue;
+        }
+        net += s * p.qty;
+        var hs = rehedge(t, closed ? 1 : p.ratioF, closed ? 1 : p.ratioU, false);
+        f.f = hs[0]; f.u = hs[1];
+      }
+    }
+    if (!closed && p.tClose <= tFill) rehedge(p.tClose, 1, 1, true);
+    ev.sort(function (a, b) { return a.t - b.t || a.k - b.k; });
+    var cum = new Float64Array((ev.length + 1) * 12);
+    for (k = 0; k < ev.length; k++) {
+      var o = (k + 1) * 12, e = ev[k], c = o + e.k * 4;
+      for (j = 0; j < 12; j++) cum[o + j] = cum[o - 12 + j];
+      if (e.n > 0) { cum[c] += e.n; cum[c + 1] += e.n * e.x; } else { cum[c + 2] -= e.n; cum[c + 3] -= e.n * e.x; }
+    }
+    var sim = { ev: ev, cum: cum, fills: fills, orders: orders };
+    var times = [], total = [], real = [], ask = [], bid = [], maxInv = 0, st = null, ie = 0, last = false;
+    for (var T = sp.t0; !last; T += p.step) {
+      if (T >= tEnd) { T = tEnd; last = true; }
+      st = stateAt(sim, fut, usd, p, T);
+      while (ie < etf.n - 1 && etf.t[ie + 1] <= T) ie++;
+      times.push(T); total.push(st.total); real.push(st.realized);
+      ask.push((etf.a[ie] / st.nav - 1) * 1e4); bid.push((etf.b[ie] / st.nav - 1) * 1e4);
+      if (Math.abs(st.etf.net * st.nav) > maxInv) maxInv = Math.abs(st.etf.net * st.nav);
+    }
+    sim.times = times; sim.total = total; sim.real = real; sim.ask = ask; sim.bid = bid; sim.parts = st.parts;
+    sim.end = {
+      total: st.total, realized: st.realized, unreal: st.unreal, fee: st.fee,
+      B: st.etf.bq, S: st.etf.sq, matched: Math.min(st.etf.bq, st.etf.sq), net: st.etf.net, avgB: st.etf.avgB, avgS: st.etf.avgS, nav: st.nav,
+      netF: st.fut.net, netU: st.usd.net, t0: sp.t0, tEnd: tEnd
+    };
+    sim.stats = {
+      n: nb + ns, buys: nb, sells: ns, turnover: fillAmt,   
+      ctrF: st.fut.bq + st.fut.sq, ctrU: st.usd.bq + st.usd.sq, spread: spF * st.X + spU, maxInv: maxInv,
+      lim: nLim, chase: nChase
+    };
+    return sim;
+  }
+  var api = { decode: decode, decodeSeries: decodeSeries, idxAt: idxAt, tickOf: tickOf, rnavAt: rnavAt, quotesAt: quotesAt,
+    quoteStats: quoteStats, hedgeLots: hedgeLots, stateAt: stateAt, simulate: simulate };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.HedgeSim = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function (root) {
+  'use strict';
+  var T_TO = 22800;                 
+  var FUT_LEAD = 30, FUT_TAIL = 60; 
+  var DEPTH_LEVELS = 5, DEPTH_STRIDE = DEPTH_LEVELS * 4;
+  var ETFS = [
+    ['133690', 'TIGER 미국나스닥100', 'MNQ', 0], ['379810', 'KODEX 미국나스닥100', 'MNQ', 0],
+    ['367380', 'ACE 미국나스닥100', 'MNQ', 0], ['368590', 'RISE 미국나스닥100', 'MNQ', 0],
+    ['360750', 'TIGER 미국S&P500', 'MES', 0], ['379800', 'KODEX 미국S&P500', 'MES', 0],
+    ['360200', 'ACE 미국S&P500', 'MES', 0], ['379780', 'RISE 미국S&P500', 'MES', 0],
+    ['455860', 'ACE 미국나스닥100', 'MNQ', 0], ['476030', 'SOL 미국나스닥100', 'MNQ', 0],
+    ['429760', 'PLUS 미국S&P500', 'MES', 0], ['432840', 'HANARO 미국S&P500', 'MES', 0],
+    ['433330', 'SOL 미국S&P500', 'MES', 0], ['444490', 'WON 미국S&P500', 'MES', 0],
+    ['449770', 'KIWOOM 미국S&P500', 'MES', 0], ['455850', 'ACE 미국S&P500', 'MES', 0],
+    ['426030', 'TIME 미국나스닥100액티브', 'MNQ', 1], ['426020', 'TIME 미국S&P500액티브', 'MES', 1],
+    ['429010', 'TIGER 미국나스닥넥스트100', 'MNQ', 1], ['399110', 'SOL 미국S&P500ESG', 'MES', 1],
+    ['487580', 'TIGER 미국S&P500동일가중', 'MES', 1], ['488500', 'TIGER 미국S&P500동일가중', 'MES', 1]
+  ];
+  var FUT_MULT = { MNQ: 2, MES: 5 };   
+  var PREFER = { etf: ['kfront'], MNQ: ['bloomberg', 'kfront'], MES: ['bloomberg', 'kfront'], USD: ['kfront', 'bloomberg'] };
+  var NAME_RE = /(?:^|[\\/])tick_(depth_etf|depth_fut|depth_book|etf|futures|theo|fx|index|stock|rnav)_(.+)_(\d{4}-\d{2}-\d{2})\.csv$/;
+  function u16(b, o) { return b[o] | (b[o + 1] << 8); }
+  function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16)) + b[o + 3] * 16777216; }
+  function u64(b, o) { return u32(b, o) + u32(b, o + 4) * 4294967296; }
+  async function zipEntries(src) {
+    if (src.size < 22) throw new Error(src.name + ': zip 이 아닙니다');
+    var tailLen = Math.min(src.size, 65557), tail = await src.read(src.size - tailLen, src.size), p = -1, i;
+    for (i = tail.length - 22; i >= 0; i--) {
+      if (tail[i] === 0x50 && tail[i + 1] === 0x4b && tail[i + 2] === 5 && tail[i + 3] === 6) { p = i; break; }
+    }
+    if (p < 0) throw new Error(src.name + ': zip 목차를 찾지 못했습니다');
+    var cdSize = u32(tail, p + 12), cdOff = u32(tail, p + 16);
+    if (u16(tail, p + 10) === 0xffff || cdSize === 0xffffffff || cdOff === 0xffffffff) {
+      var lp = p - 20;
+      if (lp < 0 || u32(tail, lp) !== 0x07064b50) throw new Error(src.name + ': 큰 zip(ZIP64) 목차를 찾지 못했습니다');
+      var zOff = u64(tail, lp + 8), z = await src.read(zOff, zOff + 56);
+      if (u32(z, 0) !== 0x06064b50) throw new Error(src.name + ': 큰 zip(ZIP64) 목차가 깨졌습니다');
+      cdSize = u64(z, 40); cdOff = u64(z, 48);
+    }
+    var cd = await src.read(cdOff, cdOff + cdSize), out = [], o = 0, dec = new TextDecoder('utf-8');
+    while (o + 46 <= cd.length && u32(cd, o) === 0x02014b50) {
+      var comp = u32(cd, o + 20), size = u32(cd, o + 24), nl = u16(cd, o + 28), xl = u16(cd, o + 30), off = u32(cd, o + 42);
+      for (var x = o + 46 + nl, xe = x + xl; x + 4 <= xe; x += 4 + u16(cd, x + 2)) {
+        if (u16(cd, x) !== 1) continue;
+        var q = x + 4;
+        if (size === 0xffffffff) { size = u64(cd, q); q += 8; }
+        if (comp === 0xffffffff) { comp = u64(cd, q); q += 8; }
+        if (off === 0xffffffff) off = u64(cd, q);
+      }
+      out.push({ name: dec.decode(cd.subarray(o + 46, o + 46 + nl)), method: u16(cd, o + 10), comp: comp, size: size, offset: off,
+        encrypted: !!(u16(cd, o + 8) & 1) });
+      o += 46 + nl + xl + u16(cd, o + 32);
+    }
+    return out;
+  }
+  async function readEntry(src, e, onChunk) {
+    if (e.encrypted) throw new Error(e.name + ': 암호가 걸린 zip 은 읽지 못합니다');
+    var lh = await src.read(e.offset, e.offset + 30);
+    if (lh.length < 30 || u32(lh, 0) !== 0x04034b50) throw new Error(e.name + ': zip 이 깨졌습니다');
+    var start = e.offset + 30 + u16(lh, 26) + u16(lh, 28), end = start + e.comp, STEP = 4 << 20;
+    if (e.method === 0) {
+      for (var a = start; a < end; a += STEP) onChunk(await src.read(a, Math.min(end, a + STEP)));
+      return;
+    }
+    if (e.method !== 8) throw new Error(e.name + ': 지원하지 않는 압축 방식(' + e.method + ')');
+    var rd = new Blob([await src.read(start, end)]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+    for (;;) {
+      var r = await rd.read();
+      if (r.done) break;
+      onChunk(r.value);
+    }
+  }
+  function quoted(s) {
+    var out = [], cur = '', inq = false, i, c;
+    for (i = 0; i < s.length; i++) {
+      c = s[i];
+      if (inq) { if (c === '"') { if (s[i + 1] === '"') { cur += '"'; i++; } else inq = false; } else cur += c; }
+      else if (c === '"') inq = true;
+      else if (c === ',') { out.push(cur); cur = ''; }
+      else cur += c;
+    }
+    out.push(cur);
+    return out;
+  }
+  function lineSplitter(onHead, onRow) {
+    var dec = new TextDecoder('utf-8'), carry = '', first = true;
+    function line(s) {
+      if (s.charCodeAt(s.length - 1) === 13) s = s.slice(0, -1);
+      if (!s) return;
+      var cells = s.indexOf('"') < 0 ? s.split(',') : quoted(s);
+      if (!first) { onRow(cells); return; }
+      first = false;
+      if (cells[0].charCodeAt(0) === 0xfeff) cells[0] = cells[0].slice(1);
+      onHead(cells);
+    }
+    function feed(text) {
+      var a = 0, n;
+      text = carry + text;
+      while ((n = text.indexOf('\n', a)) >= 0) { line(text.slice(a, n)); a = n + 1; }
+      carry = text.slice(a);
+    }
+    return {
+      push: function (u8) { feed(dec.decode(u8, { stream: true })); },
+      end: function () { feed(dec.decode()); if (carry) { line(carry); carry = ''; } }
+    };
+  }
+  var TIME_RE = /^\d\d:\d\d:\d\d(\.\d+)?$/;
+  function tenths(s) {
+    if (!TIME_RE.test(s)) return NaN;
+    var c = function (i) { return s.charCodeAt(i) - 48; };
+    var us = ((c(0) * 10 + c(1)) * 3600 + (c(3) * 10 + c(4)) * 60 + c(6) * 10 + c(7)) * 1e6, k, m;
+    for (k = 9, m = 1e5; k < s.length && k < 15; k++, m /= 10) us += c(k) * m;
+    var x = (us - 324e8) / 1e6 * 10, f = Math.floor(x), d = x - f;
+    return d < 0.5 ? f : (d > 0.5 ? f + 1 : (f % 2 === 0 ? f : f + 1));
+  }
+  function colIndex(head, names) {
+    return names.map(function (n) { return head.indexOf(n); });
+  }
+  function f64(a) { return Float64Array.from(a); }
+  function tickReader(day, lo, hi) {
+    var by = {}, ix = null;
+    return {
+      head: function (h) { ix = colIndex(h, ['일자', '시각', '체결가', '매수1', '매도1', '원천']); },
+      row: function (c) {
+        if (!ix || c[ix[0]] !== day) return;
+        var l = +c[ix[2]], b = +c[ix[3]], a = +c[ix[4]];
+        if (!(l > 0 && b > 0 && a > 0)) return;
+        var t = tenths(c[ix[1]]);
+        if (!(t >= lo && t <= hi)) return;
+        var key = c[ix[5]] || '', s = by[key] || (by[key] = { T: [], L: [], B: [], A: [], rows: 0 }), n = s.T.length;
+        s.rows++;
+        if (n && s.L[n - 1] === l && s.B[n - 1] === b && s.A[n - 1] === a) return;
+        s.T.push(t / 10); s.L.push(l); s.B.push(b); s.A.push(a);
+      },
+      done: function () { return by; }
+    };
+  }
+  function pickSource(by, prefer) {
+    var best = null, k;
+    for (k = 0; k < prefer.length; k++) if (by[prefer[k]] && by[prefer[k]].T.length > 1) return finish(by, prefer[k]);
+    for (k in by) if (by[k].T.length > 1 && (!best || by[k].rows > by[best].rows)) best = k;
+    return best == null ? null : finish(by, best);
+  }
+  function finish(by, key) {
+    var s = by[key];
+    return { src: key, rows: s.rows, s: { n: s.T.length, t: f64(s.T), l: f64(s.L), b: f64(s.B), a: f64(s.A) } };
+  }
+  function rnavReader(day) {
+    var ix = null, cols = [{ T: [], V: [], end: 0 }, { T: [], V: [], end: 0 }];
+    return {
+      head: function (h) { ix = colIndex(h, ['일자', '시각', 'rNAV분해', 'rNAV지수']); },
+      row: function (c) {
+        if (!ix || c[ix[0]] !== day) return;
+        var t = tenths(c[ix[1]]) / 10, k, v, s, n;
+        if (!(t <= T_TO)) return;
+        for (k = 0; k < 2; k++) {
+          v = ix[k + 2] < 0 ? 0 : +c[ix[k + 2]];
+          if (!(v > 0)) continue;
+          s = cols[k]; n = s.T.length; s.end = t;
+          if (n && s.V[n - 1] === v) continue;
+          s.T.push(t); s.V.push(v);
+        }
+      },
+      done: function () {
+        var out = cols.map(function (s) { return s.T.length ? { n: s.T.length, t: f64(s.T), v: f64(s.V), end: s.end } : null; });
+        return { d: out[0], i: out[1] };
+      }
+    };
+  }
+  function depthReader(day, lo, hi) {
+    var ix = null, iT, iLast, iVol, T = [], Q = [], prev = new Array(DEPTH_STRIDE), vol0 = NaN, amt = 0, hasVol = false, top = 0;
+    return {
+      head: function (h) {
+        var names = [], s, n;
+        for (s = 0; s < 2; s++) for (n = 1; n <= DEPTH_LEVELS; n++) { names.push((s ? '매수' : '매도') + n); names.push((s ? '매수' : '매도') + n + '잔량'); }
+        ix = colIndex(h, names);
+        iT = colIndex(h, ['일자', '시각']); iLast = h.indexOf('현재가'); iVol = h.indexOf('거래량');
+      },
+      row: function (c) {
+        if (!ix || c[iT[0]] !== day) return;
+        var t = tenths(c[iT[1]]), k, v, same = T.length > 0;
+        if (!(t <= hi)) return;
+        var vol = iVol < 0 || c[iVol] === '' ? NaN : +c[iVol], last = iLast < 0 ? NaN : +c[iLast];
+        if (vol >= 0) {
+          if (t >= lo && vol > vol0 && last > 0) { amt += (vol - vol0) * last; hasVol = true; }
+          vol0 = vol;
+        }
+        if (t < lo) return;
+        var cur = new Array(DEPTH_STRIDE);
+        for (k = 0; k < DEPTH_STRIDE; k++) {
+          v = ix[k] < 0 || c[ix[k]] === '' ? NaN : +c[ix[k]];
+          if (!(v > 0)) v = NaN;
+          cur[k] = v;
+          if (same && !(v === prev[k] || (v !== v && prev[k] !== prev[k]))) same = false;
+          if (v === v && k % 2 === 0) top = Math.max(top, ((k % (DEPTH_LEVELS * 2)) >> 1) + 1);   
+        }
+        if (same) return;
+        prev = cur;
+        T.push(t / 10);
+        for (k = 0; k < DEPTH_STRIDE; k++) Q.push(cur[k]);
+      },
+      done: function () {
+        return T.length ? { n: T.length, t: f64(T), q: f64(Q), amt: hasVol ? amt : null, levels: top } : null;
+      }
+    };
+  }
+  async function openZips(sources) {
+    var cat = { days: [], by: {}, zips: [], other: 0 }, i, j;
+    for (i = 0; i < sources.length; i++) {
+      var entries = await zipEntries(sources[i]), n = 0;
+      for (j = 0; j < entries.length; j++) {
+        var m = NAME_RE.exec(entries[j].name);
+        if (!m) { if (!/\/$/.test(entries[j].name)) cat.other++; continue; }
+        var day = cat.by[m[3]] || (cat.by[m[3]] = {}), kind = day[m[1]] || (day[m[1]] = {});
+        kind[m[2]] = { src: sources[i], e: entries[j] };
+        n++;
+      }
+      cat.zips.push({ name: sources[i].name, files: n });
+    }
+    cat.days = Object.keys(cat.by).sort();
+    return cat;
+  }
+  function dayInfo(cat, day) {
+    var d = cat.by[day] || {}, known = {}, n = function (k) { return Object.keys(d[k] || {}).length; };
+    ETFS.forEach(function (e) { known[e[0]] = 1; });
+    var etf = Object.keys(d.etf || {}).filter(function (c) { return known[c]; }).length;
+    var fut = Object.keys(FUT_MULT).concat('USD').filter(function (r) { return d.futures && d.futures[r]; });
+    var why = !etf ? 'ETF 틱 없음' : (fut.indexOf('USD') < 0 ? '달러선물(USD) 틱 없음' : (fut.length < 2 ? '지수선물(MNQ · MES) 틱 없음' : ''));
+    return { etf: etf, fut: fut, rnav: n('rnav'), depth: n('depth_etf') + n('depth_fut') + n('depth_book'), ok: !why, why: why };
+  }
+  async function parse(item, reader) {
+    var sp = lineSplitter(reader.head, reader.row);
+    await readEntry(item.src, item.e, sp.push);
+    sp.end();
+    return reader.done();
+  }
+  async function loadDay(cat, day, onProgress) {
+    var d = cat.by[day] || {}, notes = [], lo = 0, hi = T_TO * 10, futLo = -FUT_LEAD * 10, futHi = (T_TO + FUT_TAIL) * 10;
+    var jobs = [], out = { day: day, etf: [], fut: {}, usd: null, notes: notes };
+    function job(item, reader, use) { jobs.push({ item: item, reader: reader, use: use }); }
+    async function runJobs() {
+      var todo = jobs;
+      jobs = [];
+      for (var i = 0; i < todo.length; i++) {
+        if (onProgress) onProgress(todo[i].item.e.name);
+        todo[i].use(await parse(todo[i].item, todo[i].reader));
+      }
+    }
+    Object.keys(FUT_MULT).concat('USD').forEach(function (r) {
+      if (!d.futures || !d.futures[r]) return;
+      job(d.futures[r], tickReader(day, r === 'USD' ? lo : futLo, futHi), function (by) {
+        var s = pickSource(by, PREFER[r]);
+        if (!s) { notes.push(r + ' 선물 — 호가가 든 줄 없음(원천 ' + (Object.keys(by).join(' · ') || '없음') + ')'); return; }
+        if (r === 'USD') { out.usd = s; if (s.src === 'bloomberg') notes.push('달러선물 — K-front 줄이 없어 블룸버그(20분 지연) 사용'); }
+        else { s.mult = FUT_MULT[r]; out.fut[r] = s; if (s.src !== 'bloomberg') notes.push(r + ' — 블룸버그 줄이 없어 ' + s.src + ' 사용'); }
+      });
+    });
+    await runJobs();
+    if (!out.usd) throw new Error(day + ': 달러선물(USD) 틱이 없습니다 — 선물 틱 zip 을 함께 열어 주세요');
+    if (!Object.keys(out.fut).length) throw new Error(day + ': 지수선물(MNQ · MES) 틱이 없습니다 — 선물 틱 zip 을 함께 열어 주세요');
+    var unknown = Object.keys(d.etf || {}).filter(function (c) { return !ETFS.some(function (e) { return e[0] === c; }); });
+    if (unknown.length) notes.push('헷지 선물을 모르는 종목 제외 — ' + unknown.join(' · '));
+    var cand = [];
+    ETFS.forEach(function (m) {
+      if (!d.etf || !d.etf[m[0]]) return;
+      if (!out.fut[m[2]]) { notes.push(m[1] + ' 제외 — ' + m[2] + ' 틱 없음'); return; }
+      var e = { code: m[0], name: m[1], fut: m[2], needRec: !!m[3], s: null, src: '', rows: 0, rec: null, depth: null, mktAmt: null };
+      cand.push(e);
+      job(d.etf[m[0]], tickReader(day, lo, hi), function (by) {
+        var s = pickSource(by, PREFER.etf);
+        if (s) { e.s = s.s; e.src = s.src; e.rows = s.rows; }
+      });
+      if (d.rnav && d.rnav[m[0]]) job(d.rnav[m[0]], rnavReader(day), function (rec) { if (rec.d || rec.i) e.rec = rec; });
+    });
+    await runJobs();
+    cand.forEach(function (e) {
+      if (!e.s) { notes.push(e.name + ' 제외 — 호가가 든 줄 없음'); return; }
+      if (e.needRec && !e.rec) { notes.push(e.name + ' 제외 — rNAV 기록 없음(지수를 그대로 따르지 않는 종목)'); return; }
+      out.etf.push(e);
+    });
+    if (!out.etf.length) throw new Error(day + ': 쓸 수 있는 ETF 틱이 없습니다' + (notes.length ? ' — ' + notes.join(' / ') : ''));
+    out.etf.forEach(function (e) {
+      if (d.depth_etf && d.depth_etf[e.code]) job(d.depth_etf[e.code], depthReader(day, lo, hi), function (x) { e.depth = x; e.mktAmt = x ? x.amt : null; });
+    });
+    if (d.depth_fut && d.depth_fut.USD) job(d.depth_fut.USD, depthReader(day, lo, futHi), function (x) { out.usd.depth = x; });
+    Object.keys(out.fut).forEach(function (r) {
+      var best = null;
+      Object.keys(d.depth_book || {}).forEach(function (sym) {
+        if (sym.indexOf(r) === 0 && (!best || d.depth_book[sym].e.size > d.depth_book[best].e.size)) best = sym;
+      });
+      if (best) job(d.depth_book[best], depthReader(day, futLo, futHi), function (x) { out.fut[r].depth = x; if (x) x.symbol = best; });
+    });
+    await runJobs();
+    return out;
+  }
+  var api = { ETFS: ETFS, FUT_MULT: FUT_MULT, T_TO: T_TO, DEPTH_STRIDE: DEPTH_STRIDE, DEPTH_LEVELS: DEPTH_LEVELS,
+    zipEntries: zipEntries, readEntry: readEntry, lineSplitter: lineSplitter, tenths: tenths,
+    openZips: openZips, dayInfo: dayInfo, loadDay: loadDay };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TickZip = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function (root) {
+  'use strict';
+  var API = 'https://api.github.com', MAX_BYTES = 100 * 1024 * 1024;   
+  var DATE_RE = /\d{4}-\d{2}-\d{2}(?:~\d{4}-\d{2}-\d{2})?/;
+  var REPO_RE = /^(?:https:\/\/github\.com\/)?([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/;
+  function parseRepo(text) {
+    var m = REPO_RE.exec(String(text || '').trim());
+    return m ? m[1] + '/' + m[2] : null;
+  }
+  function labelOf(name) {
+    var m = DATE_RE.exec(name);
+    return m ? m[0] : '날짜 없음';
+  }
+  function problem(status) {
+    if (status === 401) return '열쇠가 틀리거나 기한이 지났습니다';
+    if (status === 403) return '열쇠에 이 저장소를 읽을 권한이 없거나 요청이 너무 잦습니다';
+    if (status === 404) return '저장소 또는 가지를 찾지 못했습니다(이름 · 열쇠 권한 확인)';
+    return '깃허브 응답 오류(' + status + ')';
+  }
+  async function request(cfg, path, raw, fetchFn) {
+    var res;
+    try {
+      res = await (fetchFn || fetch)(API + '/repos/' + cfg.repo + path,
+        { headers: { Authorization: 'Bearer ' + cfg.token, Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json' } });
+    } catch (err) {
+      throw new Error('깃허브에 닿지 못했습니다(인터넷 연결 · 이 페이지의 접속 제한 확인)');
+    }
+    if (!res.ok) throw new Error(problem(res.status));
+    return res;
+  }
+  async function listZips(cfg, fetchFn) {
+    var res = await request(cfg, '/git/trees/' + encodeURIComponent(cfg.branch) + '?recursive=1', false, fetchFn);
+    var body = await res.json(), by = {}, out = [];
+    (body.tree || []).forEach(function (t) {
+      if (t.type !== 'blob' || !/\.zip$/i.test(t.path)) return;
+      var name = t.path.slice(t.path.lastIndexOf('/') + 1), label = labelOf(name);
+      if (!by[label]) { by[label] = { label: label, size: 0, files: [] }; out.push(by[label]); }
+      by[label].files.push({ name: name, sha: t.sha, size: t.size });
+      by[label].size += t.size;
+    });
+    var key = function (g) { return DATE_RE.test(g.label) ? g.label.slice(-10) + g.label : ''; };
+    out.sort(function (a, b) { return key(a) < key(b) ? 1 : (key(a) > key(b) ? -1 : 0); });
+    return out;
+  }
+  async function fetchZip(cfg, file, fetchFn, onProgress) {
+    if (file.size > MAX_BYTES) throw new Error(file.name + ': 100MB 를 넘는 zip 은 깃에서 읽지 못합니다');
+    var res = await request(cfg, '/git/blobs/' + file.sha, true, fetchFn);
+    if (!res.body || !res.body.getReader) return new Uint8Array(await res.arrayBuffer());
+    var rd = res.body.getReader(), parts = [], got = 0, at = 0;
+    for (;;) {
+      var r = await rd.read();
+      if (r.done) break;
+      parts.push(r.value); got += r.value.length;
+      if (onProgress) onProgress(got);
+    }
+    var all = new Uint8Array(got);
+    parts.forEach(function (p) { all.set(p, at); at += p.length; });
+    return all;
+  }
+  var api = { parseRepo: parseRepo, labelOf: labelOf, listZips: listZips, fetchZip: fetchZip };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TickGit = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function () {
+  'use strict';
+  var S = window.HedgeSim, L = window.TickZip, G = window.TickGit;
+  var DS = null;        
+  var qsCache = {};
+  var T_START = 60, T_END = 22740, STEP = 10, LEVELS = 2, FEE_USD = 1;
+  var DISTS = [0, 0.5, 1, 1.5, 2, 2.5, 3, 5], LAGS = [0, 0.5, 1, 2, 3, 5], RATIOS = [100, 95, 90, 85, 80];
+  var CLOSES = [19800, 21600, 22200, 22500];   
+  var HMODES = ['선물 시장가 · 상대 1호가', '선물 자기 1호가 · 찍히면 체결', '선물 자기 1호가 · 지나가야 체결', 'ETF 즉시 반대매매 · 헷지 없음'];
+  var WAITS = [5, 10, 30, 60], FLAT = 3;
+  var MODES = [[0, 0], [1, 5], [1, 10], [1, 30], [2, 5], [2, 10], [2, 30], [FLAT, 0]];   
+  var SRC_NAMES = { kfront: 'K-front', bloomberg: '블룸버그', kis: 'KIS' };
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function sgn(v) { return v > 0 ? '+' : (v < 0 ? '−' : ''); }
+  function krw(v, signed) {
+    var a = Math.abs(v), s = signed ? sgn(v) : (v < 0 ? '−' : '');
+    if (a >= 1e12) return s + (a / 1e12).toFixed(2) + '조';
+    if (a >= 1e10) return s + Math.round(a / 1e8).toLocaleString('ko-KR') + '억';
+    if (a >= 1e8) return s + (a / 1e8).toFixed(2) + '억';
+    if (a >= 1e4) return s + Math.round(a / 1e4).toLocaleString('ko-KR') + '만';
+    return s + Math.round(a).toLocaleString('ko-KR') + '원';
+  }
+  function bp(v, d) { var x = Math.abs(v).toFixed(d == null ? 2 : d); return (parseFloat(x) === 0 ? '' : sgn(v)) + x + 'bp'; }
+  function clock(t, sec) {
+    var x = Math.round(t) + 9 * 3600, h = Math.floor(x / 3600), m = Math.floor(x % 3600 / 60), s = x % 60;
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return p(h) + ':' + p(m) + (sec ? ':' + p(s) : '');
+  }
+  function cnt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+  function shares(n) { return (n < 0 ? '−' : '') + cnt(Math.abs(n)) + '주'; }
+  function axis(v) {
+    var a = Math.abs(v), s = v < 0 ? '−' : '';
+    if (a >= 1e8) return s + parseFloat((a / 1e8).toFixed(2)).toLocaleString('ko-KR') + '억';
+    if (a >= 1e4) return s + Math.round(a / 1e4).toLocaleString('ko-KR') + '만';
+    return a === 0 ? '0' : s + Math.round(a).toLocaleString('ko-KR') + '원';
+  }
+  function px(v, d) { return v.toLocaleString('ko-KR', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+  function niceTicks(lo, hi, count) {
+    var span = (hi - lo) || 1, raw = span / count, mag = Math.pow(10, Math.floor(Math.log10(raw))), n = raw / mag;
+    var step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag, out = [];
+    for (var v = Math.floor(lo / step) * step; v <= hi + step * 0.5; v += step) out.push(Math.abs(v) < step * 1e-9 ? 0 : v);
+    return out;
+  }
+  function lineChart(host, cfg) {
+    var fmtA = cfg.fmtAxis || axis, fmtV = cfg.fmtVal || function (v) { return krw(v, true); };
+    var W = Math.max(280, host.clientWidth), H = cfg.height, wide = W >= 560;
+    var m = { l: 58, r: wide ? 96 : 14, t: 12, b: 24 }, pw = W - m.l - m.r, ph = H - m.t - m.b;
+    var T = cfg.times, t0 = T[0], t1 = T[T.length - 1], lo = 0, hi = 0;
+    if (cfg.range) { lo = cfg.range[0]; hi = cfg.range[1]; } else {
+      cfg.series.forEach(function (s) { for (var i = 0; i < s.values.length; i++) { var v = s.values[i]; if (v < lo) lo = v; if (v > hi) hi = v; } });
+    }
+    if (hi === lo) hi = lo + 1;
+    var ticks = niceTicks(lo, hi, 4);
+    lo = Math.min(lo, ticks[0]); hi = Math.max(hi, ticks[ticks.length - 1]);
+    var X = function (t) { return m.l + (t - t0) / ((t1 - t0) || 1) * pw; };
+    var Y = function (v) { return m.t + (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo) * ph; };
+    var h = [], i;
+    h.push('<svg viewBox="0 0 ' + W + ' ' + H + '" height="' + H + '" font-family="var(--font)" font-size="11">');
+    if (cfg.band) {
+      h.push('<rect x="' + m.l + '" width="' + pw + '" y="' + Y(cfg.band.hi).toFixed(1) + '" height="' + (Y(cfg.band.lo) - Y(cfg.band.hi)).toFixed(1) + '" fill="var(--band)"/>');
+    }
+    ticks.forEach(function (v) {
+      var y = Y(v).toFixed(1);
+      h.push('<line x1="' + m.l + '" x2="' + (m.l + pw) + '" y1="' + y + '" y2="' + y + '" stroke="' + (v === 0 ? 'var(--muted)' : 'var(--grid)') + '" stroke-width="1"/>');
+      h.push('<text x="' + (m.l - 8) + '" y="' + (Y(v) + 3.5).toFixed(1) + '" text-anchor="end" fill="var(--muted)">' + fmtA(v) + '</text>');
+    });
+    var span = t1 - t0, tstep = pw / (span / 1800) >= 46 ? 1800 : (pw / (span / 3600) >= 46 ? 3600 : 7200);
+    for (var tt = Math.ceil(t0 / tstep) * tstep; tt <= t1; tt += tstep) {
+      h.push('<text x="' + X(tt).toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle" fill="var(--muted)">' + clock(tt) + '</text>');
+      h.push('<line x1="' + X(tt).toFixed(1) + '" x2="' + X(tt).toFixed(1) + '" y1="' + (m.t + ph) + '" y2="' + (m.t + ph + 4) + '" stroke="var(--rule)"/>');
+    }
+    cfg.series.forEach(function (s) {
+      var d = [];
+      for (i = 0; i < T.length; i++) d.push((i ? 'L' : 'M') + X(T[i]).toFixed(1) + ' ' + Y(s.values[i]).toFixed(1));
+      h.push('<path d="' + d.join('') + '" fill="none" stroke="' + s.color + '" stroke-width="' + (cfg.thin ? 1.5 : 2) + '" stroke-linejoin="round" stroke-linecap="round"/>');
+    });
+    var n = T.length - 1, ends = cfg.series.map(function (s) { return { s: s, y: Y(s.values[n]), ly: Y(s.values[n]) }; });
+    if (wide && ends.length === 2 && Math.abs(ends[0].ly - ends[1].ly) < 32) {
+      var mid = (ends[0].ly + ends[1].ly) / 2, up = ends[0].ly <= ends[1].ly ? 0 : 1;
+      ends[up].ly = mid - 16; ends[1 - up].ly = mid + 16;
+    }
+    ends.forEach(function (e) {
+      var cx = X(t1);
+      h.push('<circle cx="' + cx.toFixed(1) + '" cy="' + e.y.toFixed(1) + '" r="4" fill="' + e.s.color + '" stroke="var(--surface)" stroke-width="2"/>');
+      if (!wide) return;
+      e.ly = Math.max(m.t + 10, Math.min(m.t + ph - 12, e.ly));
+      if (Math.abs(e.ly - e.y) > 3) h.push('<line x1="' + (cx + 5).toFixed(1) + '" y1="' + e.y.toFixed(1) + '" x2="' + (cx + 11).toFixed(1) + '" y2="' + e.ly.toFixed(1) + '" stroke="var(--muted)" stroke-width="1"/>');
+      h.push('<text x="' + (cx + 13).toFixed(1) + '" y="' + (e.ly - 2).toFixed(1) + '" fill="var(--ink-2)" font-size="11.5">' + e.s.name + '</text>');
+      h.push('<text x="' + (cx + 13).toFixed(1) + '" y="' + (e.ly + 12).toFixed(1) + '" fill="var(--ink)" font-size="12" font-weight="600">' + fmtV(e.s.values[n]) + '</text>');
+    });
+    h.push('<g class="hov" visibility="hidden"><line class="cx" y1="' + m.t + '" y2="' + (m.t + ph) + '" stroke="var(--muted)" stroke-width="1"/>');
+    cfg.series.forEach(function (s) { h.push('<circle class="hd" r="4" fill="' + s.color + '" stroke="var(--surface)" stroke-width="2"/>'); });
+    h.push('</g></svg>');
+    var tip = host.querySelector('.tip');
+    host.innerHTML = h.join('');
+    if (!tip) tip = el('div', 'tip num');
+    tip.hidden = true; host.appendChild(tip);
+    host._c = { cfg: cfg, X: X, Y: Y, m: m, pw: pw, W: W, idx: n, fmtV: fmtV };
+    if (!host._bound) {
+      host._bound = true;
+      host.addEventListener('pointermove', function (ev) {
+        var c = host._c, r = host.getBoundingClientRect(), f = (ev.clientX - r.left - c.m.l) / c.pw;
+        show(host, Math.round(Math.max(0, Math.min(1, f)) * (c.cfg.times.length - 1)));
+      });
+      host.addEventListener('pointerleave', function () { hide(host); });
+      host.addEventListener('blur', function () { hide(host); });
+      host.addEventListener('focus', function () { show(host, host._c.idx); });
+      host.addEventListener('keydown', function (ev) {
+        var d = ev.key === 'ArrowLeft' ? -1 : ev.key === 'ArrowRight' ? 1 : 0;
+        if (!d) return;
+        ev.preventDefault();
+        var c = host._c;
+        show(host, Math.max(0, Math.min(c.cfg.times.length - 1, c.idx + d * (ev.shiftKey ? 30 : 6))));
+      });
+    }
+  }
+  function hide(host) { var g = host.querySelector('.hov'); if (g) g.setAttribute('visibility', 'hidden'); host.querySelector('.tip').hidden = true; }
+  function show(host, i) {
+    var c = host._c, cfg = c.cfg, x = c.X(cfg.times[i]), g = host.querySelector('.hov'), tip = host.querySelector('.tip');
+    c.idx = i;
+    g.setAttribute('visibility', 'visible');
+    var ln = g.querySelector('.cx'); ln.setAttribute('x1', x); ln.setAttribute('x2', x);
+    var dots = g.querySelectorAll('.hd');
+    tip.textContent = '';
+    tip.appendChild(el('div', 't', clock(cfg.times[i], true)));
+    cfg.series.forEach(function (s, k) {
+      dots[k].setAttribute('cx', x); dots[k].setAttribute('cy', c.Y(s.values[i]));
+      var r = el('div', 'r'), key = el('span', 'key');
+      key.style.setProperty('--c', s.color);
+      r.appendChild(key); r.appendChild(el('b', null, c.fmtV(s.values[i]))); r.appendChild(el('span', 'n', s.name));
+      tip.appendChild(r);
+    });
+    tip.hidden = false;
+    var tw = tip.offsetWidth, left = x + 12;
+    if (left + tw > c.W - 4) left = x - 12 - tw;
+    tip.style.left = Math.max(4, left) + 'px';
+  }
+  var sel = $('etf'), distSel = $('dist');
+  DISTS.forEach(function (d, i) { var o = el('option', null, d + 'bp'); o.value = i; distSel.appendChild(o); });
+  CLOSES.forEach(function (t, i) { var o = el('option', null, clock(t)); o.value = t; o.selected = i === CLOSES.length - 1; $('tClose').appendChild(o); });
+  HMODES.forEach(function (t, i) { var o = el('option', null, t); o.value = i; $('hmode').appendChild(o); });
+  WAITS.forEach(function (t) { var o = el('option', null, t + '초'); o.value = t; o.selected = t === 10; $('wait').appendChild(o); });
+  var last = null;
+  function recOf(e, basis) {
+    if (!e.rec) return null;
+    return e.rec[basis] || (e.needRec ? (e.rec.d || e.rec.i) : null) || null;
+  }
+  function paramsOf(e, c) {
+    var rec = recOf(e, c.basis), key = e.code + (rec ? c.basis : 'm'), fut = DS.fut[e.fut], usd = DS.usd.s;
+    var p = { mult: fut.mult, lagQ: c.lagQ, lagF: c.lagF, lagU: c.lagU, tStart: T_START, tEnd: T_END, step: STEP,
+      rec: rec, level: 1, adj: 0, dist: c.dist / 1e4, levels: LEVELS, qty: 1, fxLots: 1, feeUsd: FEE_USD,
+      ratioF: c.ratioF / 100, ratioU: c.ratioU / 100, tClose: c.tClose, hmode: c.hmode, wait: c.wait };
+    if (!qsCache[key]) {
+      var qs = S.quoteStats(e.s, fut.s, usd, p);
+      p.level = qs.level;
+      qsCache[key] = { qs: qs, lots: S.hedgeLots(e.s, fut.s, usd, p) };
+    }
+    var q = qsCache[key];
+    p.level = q.qs.level; p.qty = q.lots.qty; p.fxLots = q.lots.fxLots; p.adj = c.adjBp / 1e4;
+    return { p: p, qs: q.qs, lots: q.lots, rec: !!rec };
+  }
+  function sim(e, base, over) {
+    var p = {}, k;
+    for (k in base) p[k] = base[k];
+    for (k in over) p[k] = over[k];
+    return S.simulate(e.s, DS.fut[e.fut].s, DS.usd.s, p);
+  }
+  function run() {
+    if (!DS) return;
+    var e = DS.etf.filter(function (x) { return x.code === sel.value; })[0] || DS.etf[0];
+    var c = { basis: $('basisI').checked ? 'i' : 'd', dist: DISTS[+distSel.value], lagQ: +$('lagQ').value, lagF: +$('lagF').value, lagU: +$('lagU').value,
+      adjBp: +$('adj').value, ratioF: +$('ratioF').value, ratioU: +$('ratioU').value, tClose: +$('tClose').value,
+      hmode: +$('hmode').value, wait: +$('wait').value };
+    $('wait').disabled = c.hmode !== 1 && c.hmode !== 2;
+    $('ratioFo').textContent = c.ratioF + '%'; $('ratioUo').textContent = c.ratioU + '%';
+    $('lagQo').textContent = c.lagQ.toFixed(1) + '초'; $('lagFo').textContent = c.lagF.toFixed(1) + '초'; $('lagUo').textContent = c.lagU.toFixed(1) + '초';
+    $('adjo').textContent = bp(c.adjBp, 1);
+    var cur = paramsOf(e, c);
+    var sweep = DISTS.map(function (d) { return sim(e, cur.p, { dist: d / 1e4 }); });
+    var r = sweep[+distSel.value];
+    var lags = LAGS.map(function (q) { return q === c.lagQ ? r : sim(e, cur.p, { lagQ: q }); });
+    var ratios = RATIOS.map(function (v) { return v === c.ratioF && v === c.ratioU ? r : sim(e, cur.p, { ratioF: v / 100, ratioU: v / 100 }); });
+    var modes = MODES.map(function (m) { return m[0] === c.hmode && (!m[1] || m[1] === c.wait) ? r : sim(e, cur.p, { hmode: m[0], wait: m[1] || c.wait }); });
+    var all = DS.etf.map(function (x) {
+      if (x.code === e.code) return { e: x, lots: cur.lots, qs: cur.qs, r: r };
+      var o = paramsOf(x, c);
+      return { e: x, lots: o.lots, qs: o.qs, r: S.simulate(x.s, DS.fut[x.fut].s, DS.usd.s, o.p) };
+    });
+    last = { e: e, c: c, cur: cur, r: r, sweep: sweep, lags: lags, ratios: ratios, modes: modes, all: all };
+    draw();
+    rpReset();
+  }
+  function stat(parent, cls, k, v, s, color) {
+    var d = el('div', 'stat' + (cls ? ' ' + cls : '')), kk = el('div', 'k');
+    if (color) { var key = el('span', 'key'); key.style.setProperty('--c', color); kk.appendChild(key); }
+    kk.appendChild(document.createTextNode(k));
+    d.appendChild(kk); d.appendChild(el('div', 'v num', v));
+    if (s) d.appendChild(el('div', 's num', s));
+    parent.appendChild(d);
+  }
+  function perTurn(v, st) { return st.turnover ? bp(v / st.turnover * 1e4) : '–'; }
+  function head(table, names) {
+    table.textContent = '';
+    var hr = table.createTHead().insertRow();
+    names.forEach(function (t) { hr.appendChild(el('th', null, t)); });
+    return table.createTBody();
+  }
+  function cells(row, vals) { vals.forEach(function (t, k) { row.appendChild(el('td', k ? 'num' : '', t)); }); }
+  function bs(st) { return cnt(st.buys) + ' · ' + cnt(st.sells); }
+  function barRow(body, label, share, color, vals) {
+    var row = body.insertRow(), bar = el('div', 'hbar'), fill = el('i'), td = el('td');
+    row.appendChild(el('td', '', label));
+    fill.style.width = (share * 100).toFixed(1) + '%'; fill.style.setProperty('--c', color); fill.title = label + ' ' + vals[0];
+    bar.appendChild(fill); td.appendChild(bar); row.appendChild(td);
+    vals.forEach(function (v) { row.appendChild(el('td', 'num', v)); });
+  }
+  function midRow(body, text, span) {
+    var row = body.insertRow(), td = el('td', 'num', text);
+    row.className = 'rnav'; td.colSpan = span; row.appendChild(td);
+  }
+  function depthAt(dp, T) { return dp && T >= dp.t[0] ? S.idxAt(dp.t, T) * L.DEPTH_STRIDE : -1; }
+  function draw() {
+    var e = last.e, c = last.c, r = last.r, x = r.end, st = r.stats, P = r.parts, fut = DS.fut[e.fut], usd = DS.usd;
+    $('meta').textContent = DS.day + ' · ' + clock(x.t0) + ' ~ ' + clock(x.tEnd) + ' · ' +
+      (last.cur.rec ? '앱 rNAV 기록' : 'rNAV 기록 없음 · 선물 변동 재구성값');
+    var box = $('stats'); box.textContent = '';
+    stat(box, 'lead', '합계', krw(x.total, true), '거래대금 대비 ' + perTurn(x.total, st), 'var(--s1)');
+    stat(box, '', '확정 손익', krw(x.realized, true), '매칭 ' + shares(x.matched), 'var(--s2)');
+    stat(box, '', '평가손익', krw(x.unreal, true), '잔량 ' + shares(x.net) + ' · rNAV ' + px(x.nav, 0));
+    stat(box, '', '해외선물 수수료', krw(-x.fee, true), cnt(st.ctrF) + '계약 × ' + FEE_USD + '달러');
+    stat(box, '', '헷지 호가 비용', krw(st.spread, true), c.hmode && st.lim + st.chase
+      ? '지정가 체결 ' + Math.round(st.lim / (st.lim + st.chase) * 100) + '%' : '달러선물 ' + cnt(st.ctrU) + '계약');
+    stat(box, '', 'ETF 체결', cnt(st.n) + '회', '매수 ' + cnt(st.buys) + ' · 매도 ' + cnt(st.sells));
+    stat(box, '', '거래대금', krw(st.turnover, false), e.mktAmt ? '시장 ' + krw(e.mktAmt, false) + '의 ' + (st.turnover / e.mktAmt).toFixed(2) + '배' : '');
+    var per = Math.round(60 / STEP), qt = [], qa = [], qb = [];
+    for (var g = 0; g + per <= r.times.length; g += per) {
+      var sa = 0, sb2 = 0;
+      for (var j = g; j < g + per; j++) { sa += r.ask[j]; sb2 += r.bid[j]; }
+      qt.push(r.times[g + per - 1]); qa.push(sa / per); qb.push(sb2 / per);
+    }
+    if (!qt.length) { qt = r.times; qa = r.ask; qb = r.bid; }   
+    var pool = qa.concat(qb).sort(function (a, b) { return a - b; });
+    var qlo = Math.min(pool[Math.floor(pool.length * 0.005)], -c.dist), qhi = Math.max(pool[Math.ceil(pool.length * 0.995) - 1], c.dist);
+    $('bandItem').hidden = !c.dist;
+    $('bandlab').textContent = '우리 1호가 ±' + c.dist + 'bp';
+    lineChart($('quote'), { times: qt, height: 280, thin: true, range: [qlo, qhi], band: c.dist ? { lo: -c.dist, hi: c.dist } : null,
+      fmtAxis: function (v) { return v === 0 ? 'rNAV' : bp(v, Math.abs(v) < 1 && v % 1 ? 1 : 0); }, fmtVal: function (v) { return bp(v, 1); }, series: [
+        { name: '매도1', color: 'var(--s2)', values: qa },
+        { name: '매수1', color: 'var(--s1)', values: qb }] });
+    var tick = S.tickOf(x.nav), tickBp = tick / x.nav * 1e4, CAP = 5, na = [], nbk = [], total = r.ask.length, k;
+    for (k = 0; k <= CAP; k++) { na.push(0); nbk.push(0); }
+    for (var s0 = 0; s0 < total; s0++) {
+      na[Math.max(0, Math.min(CAP, Math.ceil(r.ask[s0] / tickBp - 1e-9)))]++;
+      nbk[Math.max(0, Math.min(CAP, Math.ceil(-r.bid[s0] / tickBp - 1e-9)))]++;
+    }
+    $('posTitle').textContent = '시장 1호가 위치 · 1틱 = ' + tickBp.toFixed(2) + 'bp';
+    var pb = head($('pos'), ['rNAV 대비', '', '시간 비중']);
+    var posRow = function (label, n, color) { barRow(pb, label, n / total, color, [(n / total * 100).toFixed(1) + '%']); };
+    for (k = CAP; k >= 1; k--) posRow('매도1 +' + k + '틱' + (k === CAP ? ' 이상' : ''), na[k], 'var(--s2)');
+    posRow('매도1 rNAV 이하', na[0], 'var(--s2)');
+    midRow(pb, 'rNAV', 3);
+    posRow('매수1 rNAV 이상', nbk[0], 'var(--s1)');
+    for (k = 1; k <= CAP; k++) posRow('매수1 −' + k + '틱' + (k === CAP ? ' 이상' : ''), nbk[k], 'var(--s1)');
+    var dp = e.depth, da = [], db = [], nd = 0;
+    $('depthPanel').hidden = !dp;
+    if (dp) {
+      for (k = 0; k <= CAP; k++) { da.push(0); db.push(0); }
+      for (s0 = 0; s0 < r.times.length; s0++) {
+        var o = depthAt(dp, r.times[s0]);
+        if (o < 0) continue;
+        var rn = S.rnavAt(last.cur.p, fut.s, usd.s, r.times[s0]);
+        for (var lv = 0; lv < L.DEPTH_LEVELS; lv++) {
+          var ap = dp.q[o + lv * 2], aq = dp.q[o + lv * 2 + 1], bpr = dp.q[o + 10 + lv * 2], bq = dp.q[o + 10 + lv * 2 + 1];
+          if (ap === ap && aq === aq) da[Math.max(0, Math.min(CAP, Math.ceil((ap - rn) / tick - 1e-9)))] += aq;
+          if (bpr === bpr && bq === bq) db[Math.max(0, Math.min(CAP, Math.ceil((rn - bpr) / tick - 1e-9)))] += bq;
+        }
+        nd++;
+      }
+      nd = nd || 1;
+      var top = Math.max.apply(null, da.concat(db)) || 1;
+      $('depthTitle').textContent = '호가 잔량 분포 · ' + dp.levels + '단 · 표본 평균';
+      var dbody = head($('depth'), ['rNAV 대비', '', '평균 잔량', '금액']);
+      var depthRow = function (label, sum, color) { barRow(dbody, label, sum / top, color, [shares(sum / nd), krw(sum / nd * x.nav, false)]); };
+      for (k = CAP; k >= 1; k--) depthRow('매도 +' + k + '틱' + (k === CAP ? ' 이상' : ''), da[k], 'var(--s2)');
+      depthRow('매도 rNAV 이하', da[0], 'var(--s2)');
+      midRow(dbody, 'rNAV', 4);
+      depthRow('매수 rNAV 이상', db[0], 'var(--s1)');
+      for (k = 1; k <= CAP; k++) depthRow('매수 −' + k + '틱' + (k === CAP ? ' 이상' : ''), db[k], 'var(--s1)');
+    }
+    var rb = head($('recog'), ['', '확정', '평가', '계']);
+    [['ETF', P.etf], ['지수선물 ' + e.fut, P.fut], ['달러선물', P.usd], ['해외선물 수수료', P.fee], ['합계', { real: x.realized, unreal: x.unreal }]].forEach(function (v, n) {
+      var row = rb.insertRow(); if (n === 4) row.className = 'sum';
+      cells(row, [v[0], krw(v[1].real, true), krw(v[1].unreal, true), krw(v[1].real + v[1].unreal, true)]);
+    });
+    var lb = head($('lags'), ['호가 갱신 지연', '매수 · 매도', '확정', '평가', '합계', '거래대금 대비']);
+    last.lags.forEach(function (v, n) {
+      var row = lb.insertRow(); if (LAGS[n] === c.lagQ) row.className = 'pick';
+      cells(row, [LAGS[n] + '초', bs(v.stats), krw(v.end.realized, true), krw(v.end.unreal, true), krw(v.end.total, true), perTurn(v.end.total, v.stats)]);
+    });
+    var sb = head($('sweep'), ['호가 간격', '매수 · 매도', '매칭', '잔량', '확정', '평가', '합계', '거래대금', '거래대금 대비']);
+    last.sweep.forEach(function (v, n) {
+      var row = sb.insertRow(); if (DISTS[n] === c.dist) row.className = 'pick';
+      cells(row, [DISTS[n] + 'bp', bs(v.stats), shares(v.end.matched), shares(v.end.net), krw(v.end.realized, true), krw(v.end.unreal, true),
+        krw(v.end.total, true), krw(v.stats.turnover, false), perTurn(v.end.total, v.stats)]);
+    });
+    var mb2 = head($('modes'), ['헷지 방식', '대기', '지정가 체결', '헷지 호가 비용', '확정', '평가', '합계', '거래대금 대비']);
+    last.modes.forEach(function (v, n) {
+      var m = MODES[n], row = mb2.insertRow(), sent = v.stats.lim + v.stats.chase;
+      if (m[0] === c.hmode && (!m[1] || m[1] === c.wait)) row.className = 'pick';
+      cells(row, [HMODES[m[0]], m[1] ? m[1] + '초' : '–', sent ? Math.round(v.stats.lim / sent * 100) + '%' : '–', krw(v.stats.spread, true),
+        krw(v.end.realized, true), krw(v.end.unreal, true), krw(v.end.total, true), perTurn(v.end.total, v.stats)]);
+    });
+    var qbody = head($('ratios'), ['헷지비율', '지수선물', '달러선물', '확정', '평가', '수수료', '합계', '거래대금 대비']);
+    last.ratios.forEach(function (v, n) {
+      var row = qbody.insertRow(); if (RATIOS[n] === c.ratioF && RATIOS[n] === c.ratioU) row.className = 'pick';
+      cells(row, [RATIOS[n] + '%', cnt(v.stats.ctrF) + '계약', cnt(v.stats.ctrU) + '계약', krw(v.end.realized, true), krw(v.end.unreal, true),
+        krw(-v.end.fee, true), krw(v.end.total, true), perTurn(v.end.total, v.stats)]);
+    });
+    lineChart($('pnl'), { times: r.times, height: 280, series: [
+      { name: '합계', color: 'var(--s1)', values: r.total },
+      { name: '확정 손익', color: 'var(--s2)', values: r.real }] });
+    var ab = head($('all'), ['종목', '호가 수량', '매수 · 매도', '확정', '평가', '합계', '거래대금 대비', '거래대금', '시장 거래대금']);
+    last.all.forEach(function (v) {
+      var row = ab.insertRow(); if (v.e.code === e.code) row.className = 'pick';
+      cells(row, [v.e.name, cnt(v.lots.qty) + '주', bs(v.r.stats), krw(v.r.end.realized, true), krw(v.r.end.unreal, true), krw(v.r.end.total, true),
+        perTurn(v.r.end.total, v.r.stats), krw(v.r.stats.turnover, false), v.e.mktAmt ? krw(v.e.mktAmt, false) : '–']);
+    });
+    var flat = c.hmode === FLAT;
+    var tb = head($('fills'), ['시각', '구분', '단계', '체결가', 'rNAV', '수량'].concat(flat ? ['ETF 반대매매'] : ['지수선물 ' + e.fut, '달러선물']));
+    var F = r.fills, from = Math.max(0, F.length - 300);
+    $('fillsTitle').textContent = '체결 내역 · 최근 ' + cnt(F.length - from) + '건';
+    var hed = function (hh, d) { return hh ? (hh.n < 0 ? '매도 ' : '매수 ') + cnt(Math.abs(hh.n)) + ' @ ' + px(hh.x, d) : '–'; };
+    for (var i2 = F.length - 1; i2 >= from; i2--) {
+      var f = F[i2], row2 = tb.insertRow();
+      [clock(f.t, true), f.s > 0 ? '매수' : '매도', f.lv + '호가', px(f.p, 0), px(f.r, 1), cnt(f.q)]
+        .concat(flat ? [hed(f.x, 0)] : [hed(f.f, 2), hed(f.u, 1)]).forEach(function (t, n) {
+        row2.appendChild(el('td', n === 1 || n === 2 ? '' : 'num', t));
+      });
+    }
+    var src = function (v) { return SRC_NAMES[v] || v; };
+    var bl = $('basis'); bl.textContent = '';
+    [['호가', 'rNAV 중심 양방향 ' + LEVELS + '단계 · 1호가 = rNAV ± 간격을 호가단위 바깥으로 맞춤 · 2호가 = 한 호가단위 바깥'],
+      ['호가 수량', '단계당 지수선물 1계약분 = 승수 × 선물가 × 환율 ÷ ETF가(시작 시각 값 고정)'],
+      ['체결', 'ETF 현재가가 바뀐 틱이 우리 호가에 닿으면 그 단계 전량 체결(체결가 = 우리 호가)'],
+      ['호가 갱신 지연', '우리 호가 = 그만큼 전의 rNAV 기준'],
+      ['지수선물 헷지', 'ETF 순잔량 × 지수 헷지비율 ÷ 1계약분(절사)에 맞춤 · 100% = 체결 단계마다 1계약'],
+      ['달러선물 헷지', 'ETF 순잔량 × 환 헷지비율 ÷ 1계약분(환율 × 10,000 ÷ ETF가, 절사)에 맞춤'],
+      ['잔여 헷지', '그 시각에 비율 100% 로 모자란 계약을 한 번에 주문 · 그 뒤 체결은 100%'],
+      ['선물 주문', '시장가 = 주문 지연 뒤 상대 1호가(매수 = 매도1 · 매도 = 매수1) · 자기 1호가 = 주문 지연 뒤 매수1 · 매도1 에 걸고 대기, 안 되면 취소 뒤 시장가(지연 한 번 더) · 전량 한 번에'],
+      ['ETF 즉시 반대매매', '선물 헷지 없이, 체결된 수량만큼 ETF 를 바로 반대로 — 호가 갱신 지연 뒤 시장의 불리한 쪽 1호가(매도 = 매수1 · 매수 = 매도1)'],
+      ['지정가 체결 판정', '지나가야 = 상대 1호가가 우리 가격에 닿거나 우리 가격을 넘어선 체결 · 찍히면 = 거기에 더해 우리 가격에 체결이 찍히거나 자기 쪽 1호가가 물러남'],
+      ['수수료', '해외선물 계약당 ' + FEE_USD + '달러 × 환율 · ETF · 달러선물 수수료 제외'],
+      ['확정 손익', 'min(매수, 매도) 수량 × (평균 매도가 − 평균 매수가) · ETF · 선물 각각'],
+      ['평가손익', '남는 한 방향 수량 × 평가가 차이 · ETF 평가가 = 그 시각 rNAV · 선물 = 호가 중간값'],
+      ['rNAV', last.cur.rec ? '앱 rNAV 기록(분해 · 지수형)' : '지수선물 × 달러선물 변동 재구성 · 수준 = 구간 평균 ETF 호가 중간값 · 두 기준 같은 값'],
+      ['자료', 'ETF ' + src(e.src) + ' · 지수선물(마이크로) ' + src(fut.src) + ' · 달러선물 ' + src(usd.src) + ' 틱 · 종가 단일가 구간 제외'],
+      ['시장 거래대금', DS.sample ? '종일 · 외부 시세' : '호가 잔량 CSV 의 거래량 증가분 × 현재가 · 09:00 ~ 15:20'],
+      ['호가 잔량 분포', '10초 표본 · 5단 호가 잔량을 rNAV 와의 거리(호가단위)별로 합산한 평균']
+    ].filter(function (v) { return (v[0] !== '시장 거래대금' || e.mktAmt) && (v[0] !== '호가 잔량 분포' || dp); })
+      .forEach(function (v) { var li = el('li'); li.appendChild(el('b', null, v[0])); li.appendChild(document.createTextNode(v[1])); bl.appendChild(li); });
+  }
+  var rp = { T: 0, on: false, speed: 10, raf: 0, wall: 0 };
+  var SPEEDS = [1, 10, 60, 300];
+  SPEEDS.forEach(function (v) {
+    var lab = el('label'), inp = el('input');
+    inp.type = 'radio'; inp.name = 'rpSpeed'; inp.value = v; inp.checked = v === rp.speed;
+    inp.addEventListener('change', function () { rp.speed = v; rpDraw(); });
+    lab.appendChild(inp); lab.appendChild(document.createTextNode(v + '배')); $('rpSpeed').appendChild(lab);
+  });
+  function rpRow(table, cls, vals) {
+    var row = table.insertRow(); if (cls) row.className = cls;
+    vals.forEach(function (t) { row.appendChild(el('td', 'num', t)); });
+    return row;
+  }
+  function rpStop() { rp.on = false; cancelAnimationFrame(rp.raf); $('rpPlay').setAttribute('aria-pressed', 'false'); }
+  function rpSet(T) {
+    var x = last.r.end;
+    rp.T = Math.max(x.t0, Math.min(x.tEnd, T));
+    if (rp.T >= x.tEnd) rpStop();
+    rpDraw();
+  }
+  function rpReset() {
+    var x = last.r.end, ev = last.r.ev, sl = $('rpT');
+    sl.min = Math.floor(x.t0); sl.max = Math.ceil(x.tEnd);
+    if (!(rp.T > x.t0 && rp.T <= x.tEnd)) rp.T = ev.length ? ev[0].t : x.t0;
+    rpDraw();
+  }
+  function rpFrame(now) {
+    if (!rp.on) return;
+    var dt = Math.min(0.25, (now - rp.wall) / 1000);
+    rp.wall = now;
+    rpSet(rp.T + dt * rp.speed);
+    if (rp.on) rp.raf = requestAnimationFrame(rpFrame);
+  }
+  $('rpPlay').addEventListener('click', function () {
+    if (rp.on || !last) return;
+    if (rp.T >= last.r.end.tEnd) rp.T = last.r.end.t0;
+    rp.on = true; rp.wall = performance.now(); this.setAttribute('aria-pressed', 'true');
+    rp.raf = requestAnimationFrame(rpFrame);
+  });
+  $('rpStop').addEventListener('click', rpStop);
+  $('rpHome').addEventListener('click', function () { rpStop(); if (last) rpSet(last.r.ev.length ? last.r.ev[0].t : last.r.end.t0); });
+  $('rpT').addEventListener('input', function () { if (last) rpSet(+this.value); });
+  function rpStep(dir) {
+    if (!last) return;
+    var ev = last.r.ev, n = S.stateAt(last.r, DS.fut[last.e.fut].s, DS.usd.s, last.cur.p, rp.T).n, i;
+    rpStop();
+    if (dir > 0) { if (n < ev.length) rpSet(ev[n].t); return; }
+    for (i = n - 1; i >= 0 && ev[i].t >= rp.T; i--) {  }
+    if (i >= 0) rpSet(ev[i].t);
+  }
+  $('rpPrev').addEventListener('click', function () { rpStep(-1); });
+  $('rpNext').addEventListener('click', function () { rpStep(1); });
+  function rpDraw() {
+    if (!last) return;
+    var e = last.e, p = last.cur.p, r = last.r, fut = DS.fut[e.fut], usd = DS.usd, etf = e.s, T = rp.T, lots = last.cur.lots;
+    var st = S.stateAt(r, fut.s, usd.s, p, T), ev = r.ev, i, k;
+    $('rpT').value = Math.round(T); $('rpClock').textContent = clock(T, true);
+    var win = Math.max(3, rp.speed * 0.4), recent = [null, null, null];
+    for (i = st.n - 1; i >= 0 && ev[i].t > T - win; i--) {
+      var rk = recent[ev[i].k];
+      if (!rk) rk = recent[ev[i].k] = { t: ev[i].t, n: 0, at: {} };
+      if (ev[i].t === rk.t) { rk.n += ev[i].n; rk.at[ev[i].x] = (rk.at[ev[i].x] || 0) + ev[i].n; }
+    }
+    var q = S.quotesAt(p, fut.s, usd.s, T), tick = q.tick, ie = S.idxAt(etf.t, T), mb = etf.b[ie], ma = etf.a[ie], ml = etf.l[ie];
+    var od = depthAt(e.depth, T), book = {};
+    for (k = 0; od >= 0 && k < L.DEPTH_LEVELS * 2; k++) {
+      var dpx = e.depth.q[od + k * 2], dqty = e.depth.q[od + k * 2 + 1];
+      if (dpx === dpx) book[dpx] = (k < L.DEPTH_LEVELS ? '매도' + (k + 1) : '매수' + (k - L.DEPTH_LEVELS + 1)) + (dqty === dqty ? ' ' + cnt(dqty) : '');
+    }
+    $('rpEtfName').textContent = e.name;
+    $('rpEtfSub').textContent = '시장 매도1 ' + px(ma, 0) + ' · 매수1 ' + px(mb, 0) + ' · 현재가 ' + px(ml, 0) + ' · 단계당 ' + cnt(lots.qty) + '주';
+    var lt = $('rpEtf'); lt.textContent = '';
+    var hr = lt.createTHead().insertRow(); ['시장', '가격', '우리 호가'].forEach(function (t) { hr.appendChild(el('th', null, t)); });
+    var body = lt.createTBody(), askTop = q.ask1 + (LEVELS - 1) * tick, bidBot = q.bid1 - (LEVELS - 1) * tick;
+    var priceRow = function (pr) {
+      var tags = [], ours = '', cls = [];
+      if (book[pr]) tags.push(book[pr]); else { if (pr === ma) tags.push('매도1'); if (pr === mb) tags.push('매수1'); }
+      if (pr === ml) { tags.push('현재가'); cls.push('cur'); }
+      if (pr >= q.ask1 && pr <= askTop) { ours = '매도 ' + cnt(lots.qty); cls.push('q-ask'); }
+      if (pr <= q.bid1 && pr >= bidBot) { ours = '매수 ' + cnt(lots.qty); cls.push('q-bid'); }
+      var hit = recent[0] && recent[0].at[pr];
+      if (hit) { ours = (hit < 0 ? '매도' : '매수') + ' 체결 ' + cnt(Math.abs(hit)); cls.push('hit'); }
+      rpRow(body, cls.join(' '), [tags.join(' · '), px(pr, 0), ours]);
+    };
+    for (var pr = askTop + 2 * tick; pr >= q.ask1; pr -= tick) priceRow(pr);
+    if ((q.ask1 - q.bid1) / tick > 7) {
+      midRow(body, 'rNAV ' + px(q.r, 1), 3);
+      var gap = body.insertRow(); gap.className = 'gap'; var gtd = el('td', 'num', '⋮ ' + cnt((q.ask1 - q.bid1) / tick - 1) + '호가'); gtd.colSpan = 3; gap.appendChild(gtd);
+    } else {
+      var done = false;
+      for (pr = q.ask1 - tick; pr > q.bid1; pr -= tick) { if (!done && pr < q.r) { midRow(body, 'rNAV ' + px(q.r, 1), 3); done = true; } priceRow(pr); }
+      if (!done) midRow(body, 'rNAV ' + px(q.r, 1), 3);
+    }
+    for (pr = q.bid1; pr >= bidBot - 2 * tick; pr -= tick) priceRow(pr);
+    var board = function (tableId, subId, x, kind, d, unit, pos, lag) {
+      var s = x.s, j = S.idxAt(s.t, T), tb = $(tableId), pend = 0, rest = null, o = depthAt(x.depth, T), n;
+      tb.textContent = '';
+      for (k = r.orders.length - 1; k >= 0 && r.orders[k].t0 > T - 2 * lag - (p.hmode ? p.wait : 0) - 1e-9; k--) {
+        var h = r.orders[k];
+        if (h.k !== kind || h.t0 > T || h.t <= T) continue;
+        pend += h.n;
+        if (!rest && h.lim != null && h.tp <= T && T < h.tp + p.wait) rest = h;   
+      }
+      var rc = recent[kind], mark = function (price) {
+        var m = rc && rc.at[price];
+        return m ? '  ← ' + (m > 0 ? '매수 ' : '매도 ') + cnt(Math.abs(m)) + ' 체결' : '';
+      };
+      var level = function (side, m) { return o < 0 ? [NaN, NaN] : [x.depth.q[o + side * 10 + (m - 1) * 2], x.depth.q[o + side * 10 + (m - 1) * 2 + 1]]; };
+      var size = function (side, price) { var v = level(side, 1); return Math.abs(v[0] - price) < 1e-9 && v[1] === v[1] ? ' · ' + cnt(v[1]) : ''; };
+      var deep = function (side, m) {
+        var v = level(side, m);
+        if (v[0] === v[0] && (side ? v[0] < s.b[j] : v[0] > s.a[j])) rpRow(tb, 'deep', [(side ? '매수' : '매도') + m, px(v[0], d) + (v[1] === v[1] ? ' · ' + cnt(v[1]) : '')]);
+      };
+      for (n = L.DEPTH_LEVELS; n >= 2; n--) deep(0, n);
+      rpRow(tb, mark(s.a[j]) ? 'hit' : '', ['매도1', px(s.a[j], d) + size(0, s.a[j]) + mark(s.a[j])]);
+      rpRow(tb, 'cur', ['현재가', px(s.l[j], d)]);
+      rpRow(tb, mark(s.b[j]) ? 'hit' : '', ['매수1', px(s.b[j], d) + size(1, s.b[j]) + mark(s.b[j])]);
+      for (n = 2; n <= L.DEPTH_LEVELS; n++) deep(1, n);
+      rpRow(tb, '', ['우리 포지션', (pos.net > 0 ? '+' : (pos.net < 0 ? '−' : '')) + cnt(Math.abs(pos.net)) + unit]);
+      rpRow(tb, '', ['평균 단가', pos.net > 0 ? px(pos.avgB, d) : (pos.net < 0 ? px(pos.avgS, d) : '–')]);
+      rpRow(tb, '', ['주문 중', pend ? (pend > 0 ? '매수 ' : '매도 ') + cnt(Math.abs(pend)) + unit + (rest ? ' · 지정가 ' + px(rest.lim, d) : '') : '–']);
+      $(subId).textContent = '매수 ' + cnt(pos.bq) + ' · 매도 ' + cnt(pos.sq) + unit;
+    };
+    $('rpFutName').textContent = '해외선물 ' + e.fut;
+    board('rpFut', 'rpFutSub', fut, 1, 2, '계약', st.fut, p.lagF);
+    board('rpUsd', 'rpUsdSub', usd, 2, 1, '계약', st.usd, p.lagU);
+    var box = $('rpStats'); box.textContent = '';
+    stat(box, '', '합계', krw(st.total, true), '');
+    stat(box, '', '확정 손익', krw(st.realized, true), '수수료 ' + krw(-st.fee, true));
+    stat(box, '', '평가손익', krw(st.unreal, true), '');
+    stat(box, '', 'ETF 잔량', shares(st.etf.net), '매수 ' + cnt(st.etf.bq) + ' · 매도 ' + cnt(st.etf.sq));
+    stat(box, '', 'ETF 평균 단가', st.etf.net > 0 ? px(st.etf.avgB, 1) : (st.etf.net < 0 ? px(st.etf.avgS, 1) : '–'), 'rNAV ' + px(st.nav, 1));
+    var lb = head($('rpLog'), ['시각', '판', '체결', '가격', '기준']);
+    for (i = st.n - 1; i >= Math.max(0, st.n - 10); i--) {
+      var v = ev[i], side = v.n > 0 ? '매수' : '매도', row;
+      if (v.k === 0 && v.flat) row = [clock(v.t, true), 'ETF', '반대매매 ' + side + ' ' + cnt(Math.abs(v.n)) + '주', px(v.x, 0), v.n < 0 ? '시장 매수1' : '시장 매도1'];
+      else if (v.k === 0) row = [clock(v.t, true), 'ETF', side + ' ' + v.f.lv + '호가 ' + cnt(Math.abs(v.n)) + '주', px(v.x, 0), 'rNAV ' + px(v.f.r, 1)];
+      else row = [clock(v.t, true), v.k === 1 ? e.fut : '달러선물', side + ' ' + cnt(Math.abs(v.n)) + '계약', px(v.x, v.k === 1 ? 2 : 1),
+        (v.o.how === 1 ? (v.n > 0 ? '매수1 지정가' : '매도1 지정가') : (v.o.how === 2 ? '대기 뒤 시장가' : (v.n > 0 ? '매도1' : '매수1'))) +
+          ' · 주문 ' + clock(v.o.t0, true) + (v.o.close ? ' · 잔여 헷지' : '')];
+      cells(lb.insertRow(), row);
+    }
+  }
+  function status(text, err) { var s = $('status'); s.textContent = text; s.classList.toggle('err', !!err); }
+  function setData(ds) {
+    var keep = sel.value;
+    rpStop();
+    DS = ds; qsCache = {}; last = null; rp.T = 0;
+    sel.textContent = '';
+    DS.etf.forEach(function (e) { var o = el('option', null, e.name + ' (' + e.code + ')'); o.value = e.code; sel.appendChild(o); });
+    if (DS.etf.some(function (e) { return e.code === keep; })) sel.value = keep;
+    var nl = $('notes'); nl.textContent = '';
+    DS.notes.forEach(function (t) { nl.appendChild(el('li', null, t)); });
+    nl.hidden = !DS.notes.length;
+    $('empty').hidden = true; $('main').hidden = false;
+    run();
+  }
+  function fromSample(raw) {
+    var ds = { day: raw.day, sample: true, etf: [], fut: {}, notes: [],
+      usd: { s: S.decode(raw.usd, raw.usd.scale), src: 'kfront', depth: null } };
+    Object.keys(raw.fut).forEach(function (k) { ds.fut[k] = { s: S.decode(raw.fut[k], raw.fut[k].scale), mult: raw.fut[k].mult, src: 'bloomberg', depth: null }; });
+    raw.etf.forEach(function (e) {
+      var series = function (x) { return x && x.n ? S.decodeSeries(x) : null; };
+      var rec = e.rnav ? { d: series(e.rnav.d), i: series(e.rnav.i) } : null;
+      ds.etf.push({ code: e.code, name: e.name, fut: e.fut, s: S.decode(e, 1), src: 'kfront', rec: rec && (rec.d || rec.i) ? rec : null, depth: null, mktAmt: e.mktAmt });
+    });
+    return ds;
+  }
+  var sources = [], cat = null, seq = 0;
+  function fileSource(file) {
+    return { name: file.name, size: file.size,
+      read: function (a, b) { return file.slice(a, b).arrayBuffer().then(function (x) { return new Uint8Array(x); }); } };
+  }
+  function busy(on) { ['open', 'day', 'gitBtn', 'gitPick'].forEach(function (id) { $(id).disabled = on; }); }
+  function summary(ds) {
+    var n = function (f) { return ds.etf.filter(f).length; }, futDepth = Object.keys(ds.fut).filter(function (k) { return ds.fut[k].depth; }).length + (ds.usd.depth ? 1 : 0);
+    var parts = [cat.zips.map(function (z) { return z.name; }).join(' + '), 'ETF ' + ds.etf.length, '선물 ' + Object.keys(ds.fut).concat('USD').join(' · '),
+      'rNAV 기록 ' + n(function (e) { return e.rec; }), '호가 잔량 ETF ' + n(function (e) { return e.depth; }) + ' · 선물 ' + futDepth];
+    return parts.join(' · ');
+  }
+  async function showDay(day, mine) {
+    busy(true);
+    try {
+      var ds = await L.loadDay(cat, day, function (name) { if (mine === seq) status('읽는 중 · ' + name); });
+      if (mine !== seq) return;
+      setData(ds);
+      status(summary(ds));
+    } catch (err) {
+      if (mine === seq) status(err.message, true);
+    } finally {
+      if (mine === seq) busy(false);
+    }
+  }
+  async function addSources(list, replace) {
+    var mine = ++seq, before = sources;
+    busy(true); status('목차 읽는 중');
+    try {
+      sources = (replace ? [] : before.filter(function (s) { return !list.some(function (f) { return f.name === s.name; }); })).concat(list);
+      cat = await L.openZips(sources);
+    } catch (err) {
+      sources = before;
+      if (mine === seq) { status(err.message, true); busy(false); }
+      return;
+    }
+    if (mine !== seq) return;
+    var ok = cat.days.filter(function (d) { return L.dayInfo(cat, d).ok; }), daySel = $('day');
+    daySel.textContent = '';
+    ok.forEach(function (d) { var o = el('option', null, d); o.value = d; daySel.appendChild(o); });
+    $('dayCtl').hidden = ok.length < 2;
+    if (!ok.length) {
+      var d0 = cat.days[cat.days.length - 1];
+      status(d0 ? d0 + ' · ' + L.dayInfo(cat, d0).why + ' · zip 추가 필요' : '틱 CSV 없음(tick_종류_종목_날짜.csv)', true);
+      busy(false);
+      return;
+    }
+    daySel.value = ok[ok.length - 1];
+    await showDay(daySel.value, mine);
+  }
+  function addFiles(files) {
+    var zips = Array.prototype.filter.call(files, function (f) { return /\.zip$/i.test(f.name); });
+    if (!zips.length) { status('zip 파일 아님', true); return; }
+    addSources(zips.map(fileSource), false);
+  }
+  $('open').addEventListener('click', function () { $('zipIn').click(); });
+  $('zipIn').addEventListener('change', function () { var f = this.files; if (f && f.length) addFiles(f); this.value = ''; });
+  $('day').addEventListener('change', function () { showDay(this.value, ++seq); });
+  var dragDepth = 0;
+  function hasFiles(ev) { var t = ev.dataTransfer && ev.dataTransfer.types; return !!t && Array.prototype.indexOf.call(t, 'Files') >= 0; }
+  window.addEventListener('dragenter', function (ev) { if (hasFiles(ev)) { dragDepth++; document.body.classList.add('drag'); ev.preventDefault(); } });
+  window.addEventListener('dragover', function (ev) { if (hasFiles(ev)) ev.preventDefault(); });
+  window.addEventListener('dragleave', function () { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('drag'); } });
+  window.addEventListener('drop', function (ev) {
+    if (!hasFiles(ev)) return;
+    ev.preventDefault(); dragDepth = 0; document.body.classList.remove('drag');
+    addFiles(ev.dataTransfer.files);
+  });
+  var GIT_KEY = 'hedgesim.git', git = null, gitGroups = [];
+  function gitSaved() { try { return JSON.parse(localStorage.getItem(GIT_KEY) || 'null'); } catch (err) { return null; } }
+  function gitStore(cfg) {
+    try { if (cfg) localStorage.setItem(GIT_KEY, JSON.stringify(cfg)); else localStorage.removeItem(GIT_KEY); } catch (err) {  }
+  }
+  function mb(n) { return (n / 1e6).toFixed(1) + 'MB'; }
+  function memSource(name, bytes) {
+    return { name: name, size: bytes.length, read: function (a, b) { return Promise.resolve(bytes.subarray(a, b)); } };
+  }
+  function gitShow() {
+    var pick = $('gitPick'), first = el('option', null, gitGroups.length ? '고르기' : '자료 없음');
+    pick.textContent = '';
+    $('gitPickCtl').hidden = !git;
+    $('gitBtn').setAttribute('aria-pressed', git ? 'true' : 'false');
+    first.value = ''; pick.appendChild(first);
+    gitGroups.forEach(function (g, i) { var o = el('option', null, g.label + ' · zip ' + g.files.length + '개 · ' + mb(g.size)); o.value = i; pick.appendChild(o); });
+  }
+  async function gitConnect(cfg, quiet) {
+    var mine = ++seq;
+    busy(true);
+    if (!quiet) status('깃 목록 읽는 중');
+    try {
+      var groups = await G.listZips(cfg);
+      if (mine !== seq) return;
+      git = cfg; gitGroups = groups; gitStore(cfg);
+      $('gitForm').hidden = true;
+      if (!quiet || !DS) status('깃 연결 · ' + cfg.repo + ' · ' + cfg.branch + ' · 자료 ' + groups.length + '묶음');
+    } catch (err) {
+      if (mine !== seq) return;
+      git = null; gitGroups = [];
+      status(err.message, true);
+    } finally {
+      if (mine === seq) { gitShow(); busy(false); }
+    }
+  }
+  async function gitLoad(group) {
+    var mine = ++seq, list = [], k, f;
+    var note = function (got) { if (mine === seq) status('깃에서 받는 중 ' + (k + 1) + '/' + group.files.length + ' · ' + f.name + (got ? ' · ' + mb(got) + ' / ' + mb(f.size) : '')); };
+    busy(true);
+    try {
+      for (k = 0; k < group.files.length; k++) {
+        f = group.files[k];
+        note(0);
+        list.push(memSource(f.name, await G.fetchZip(git, f, null, note)));
+        if (mine !== seq) return;
+      }
+    } catch (err) {
+      if (mine === seq) { status(err.message, true); busy(false); }
+      return;
+    }
+    await addSources(list, true);
+  }
+  $('gitBtn').addEventListener('click', function () {
+    var form = $('gitForm'), cfg = git || gitSaved() || {};
+    form.hidden = !form.hidden;
+    if (form.hidden) return;
+    $('gitRepo').value = cfg.repo || ''; $('gitBranch').value = cfg.branch || 'ticks'; $('gitToken').value = cfg.token || '';
+  });
+  $('gitForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var repo = G.parseRepo($('gitRepo').value), branch = $('gitBranch').value.trim(), token = $('gitToken').value.trim();
+    if (!repo || !branch || !token) { status('저장소(소유자/저장소) · 가지 · 열쇠 필요', true); return; }
+    gitConnect({ repo: repo, branch: branch, token: token }, false);
+  });
+  $('gitForget').addEventListener('click', function () {
+    git = null; gitGroups = []; gitStore(null);
+    $('gitToken').value = ''; $('gitForm').hidden = true;
+    gitShow(); status('깃 연결 해제');
+  });
+  $('gitPick').addEventListener('change', function () { if (this.value !== '') gitLoad(gitGroups[+this.value]); });
+  ['etf', 'dist', 'basisD', 'basisI', 'tClose', 'hmode', 'wait'].forEach(function (id) { $(id).addEventListener('change', run); });
+  var raf = 0;
+  ['lagQ', 'lagF', 'lagU', 'adj', 'ratioF', 'ratioU'].forEach(function (id) {
+    $(id).addEventListener('input', function () { clearTimeout(raf); raf = setTimeout(run, 120); });
+  });
+  var rz = 0;
+  window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(function () { if (last) { draw(); rpDraw(); } }, 120); });
+  var sample = $('tickdata').textContent.trim();
+  if (sample) { setData(fromSample(JSON.parse(sample))); status('내장 표본 ' + DS.day); } else $('empty').hidden = false;
+  var hash = new URLSearchParams(location.hash.slice(1)), preset = G.parseRepo(hash.get('repo'));
+  if (preset) {
+    gitStore({ repo: preset, branch: hash.get('branch') || 'ticks', token: (gitSaved() || {}).token || '' });
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (err) {  }
+  }
+  var kept = gitSaved();
+  if (kept && kept.repo && kept.token) gitConnect(kept, true); else if (preset) $('gitBtn').click();
+})();
+</script>
+</body>
+</html>
