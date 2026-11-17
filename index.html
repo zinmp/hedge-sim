@@ -608,7 +608,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     ['487580', 'TIGER 미국S&P500동일가중', 'MES', 1], ['488500', 'TIGER 미국S&P500동일가중', 'MES', 1]
   ];
   var FUT_MULT = { MNQ: 2, MES: 5 };   
-  var PREFER = { etf: ['kfront'], MNQ: ['bloomberg', 'kfront'], MES: ['bloomberg', 'kfront'], USD: ['kfront', 'bloomberg'] };
+  var PREFER = { etf: ['krx', 'kfront'], MNQ: ['bloomberg', 'kfront'], MES: ['bloomberg', 'kfront'], USD: ['kfront', 'bloomberg'] };
   var NAME_RE = /(?:^|[\\/])tick_(depth_etf|depth_fut|depth_book|etf|futures|theo|fx|index|stock|rnav)_(.+)_(\d{4}-\d{2}-\d{2})\.csv$/;
   function u16(b, o) { return b[o] | (b[o + 1] << 8); }
   function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16)) + b[o + 3] * 16777216; }
@@ -803,7 +803,8 @@ tr.gap td { color: var(--muted); text-align: center; }
         var m = NAME_RE.exec(entries[j].name);
         if (!m) { if (!/\/$/.test(entries[j].name)) cat.other++; continue; }
         var day = cat.by[m[3]] || (cat.by[m[3]] = {}), kind = day[m[1]] || (day[m[1]] = {});
-        kind[m[2]] = { src: sources[i], e: entries[j] };
+        var feed = /시세망/.test(sources[i].name), had = kind[m[2]];
+        if (!had || feed || !had.feed) kind[m[2]] = { src: sources[i], e: entries[j], feed: feed };
         n++;
       }
       cat.zips.push({ name: sources[i].name, files: n });
@@ -904,6 +905,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     var m = DATE_RE.exec(name);
     return m ? m[0] : '날짜 없음';
   }
+  function isArchive(name) { return /ETF시세망_전체_/.test(name); }
   function problem(status) {
     if (status === 401) return '열쇠가 틀리거나 기한이 지났습니다';
     if (status === 403) return '열쇠에 이 저장소를 읽을 권한이 없거나 요청이 너무 잦습니다';
@@ -932,6 +934,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     (body.tree || []).forEach(function (t) {
       if (t.type !== 'blob' || !/\.zip$/i.test(t.path)) return;
       var name = t.path.slice(t.path.lastIndexOf('/') + 1), label = labelOf(name);
+      if (isArchive(name)) return;
       if (!by[label]) { by[label] = { label: label, size: 0, files: [] }; out.push(by[label]); }
       by[label].files.push({ name: name, sha: t.sha, size: t.size });
       by[label].size += t.size;
@@ -955,7 +958,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     parts.forEach(function (p) { all.set(p, at); at += p.length; });
     return all;
   }
-  var api = { parseRepo: parseRepo, labelOf: labelOf, listZips: listZips, fetchZip: fetchZip, fetchText: fetchText };
+  var api = { parseRepo: parseRepo, labelOf: labelOf, isArchive: isArchive, listZips: listZips, fetchZip: fetchZip, fetchText: fetchText };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TickGit = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
