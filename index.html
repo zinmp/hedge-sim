@@ -221,8 +221,10 @@ tr.gap td { color: var(--muted); text-align: center; }
     <div class="ctl"><label for="etf">종목</label><select id="etf"></select></div>
     <div class="ctl"><span class="lab" id="basislab">호가 기준</span>
       <div class="seg" role="radiogroup" aria-labelledby="basislab">
-        <label><input type="radio" name="basis" id="basisD" value="d" checked>rNAV 분해</label>
+        <label><input type="radio" name="basis" id="basisM" value="m" checked>선물 · 환 재계산</label>
+        <label><input type="radio" name="basis" id="basisD" value="d">rNAV 분해</label>
         <label><input type="radio" name="basis" id="basisI" value="i">rNAV 지수형</label>
+        <label><input type="radio" name="basis" id="basisR" value="r">재조립</label>
       </div>
     </div>
     <div class="ctl"><label for="dist">호가 간격(rNAV 대비)</label><select id="dist"></select></div>
@@ -627,7 +629,7 @@ tr.gap td { color: var(--muted); text-align: center; }
   var FIX = { tStart: 60, tEnd: 22740, step: 10, levels: 2, feeUsd: 1 };
   function pickRec(e, basis) {
     if (!e.rec) return null;
-    return e.rec[basis] || (e.needRec ? (e.rec.d || e.rec.i) : null) || null;
+    return e.rec[basis] || (e.needRec ? (e.rec.d || e.rec.i || e.rec.r) : null) || null;
   }
   function paramsOf(ds, e, c, cache) {
     var rec = pickRec(e, c.basis), key = e.code + (rec ? c.basis : 'm'), fut = ds.fut[e.fut], usd = ds.usd.s;
@@ -670,7 +672,7 @@ tr.gap td { color: var(--muted); text-align: center; }
   ];
   var FUT_MULT = { MNQ: 2, MES: 5 };   
   var PREFER = { etf: ['krx', 'kfront'], MNQ: ['bloomberg', 'kfront'], MES: ['bloomberg', 'kfront'], USD: ['krx', 'kfront', 'bloomberg'] };
-  var NAME_RE = /(?:^|[\\/])tick_(depth_etf|depth_fut|depth_book|etf|futures|theo|fx|index|stock|rnav)_(.+)_(\d{4}-\d{2}-\d{2})\.csv$/;
+  var NAME_RE = /(?:^|[\\/])tick_(depth_etf|depth_fut|depth_book|etf|futures|theo|fx|index|stock|rnav|rebuild)_(.+)_(\d{4}-\d{2}-\d{2})\.csv$/;
   function u16(b, o) { return b[o] | (b[o + 1] << 8); }
   function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16)) + b[o + 3] * 16777216; }
   function u64(b, o) { return u32(b, o) + u32(b, o + 4) * 4294967296; }
@@ -819,6 +821,21 @@ tr.gap td { color: var(--muted); text-align: center; }
       }
     };
   }
+  function rebuildReader(day) {
+    var ix = null, T = [], V = [], end = 0;
+    return {
+      head: function (h) { ix = colIndex(h, ['일자', '시각', '재조립']); },
+      row: function (c) {
+        if (!ix || ix[2] < 0 || c[ix[0]] !== day) return;
+        var t = tenths(c[ix[1]]) / 10, v = +c[ix[2]], n = T.length;
+        if (!(t <= T_TO) || !(v > 0)) return;
+        end = t;
+        if (n && V[n - 1] === v) return;
+        T.push(t); V.push(v);
+      },
+      done: function () { return T.length ? { n: T.length, t: f64(T), v: f64(V), end: end } : null; }
+    };
+  }
   function depthReader(day, lo, hi) {
     var ix = null, iT, iLast, iVol, T = [], Q = [], prev = new Array(DEPTH_STRIDE), vol0 = NaN, amt = 0, hasVol = false, top = 0;
     return {
@@ -879,7 +896,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     var etf = Object.keys(d.etf || {}).filter(function (c) { return known[c]; }).length;
     var fut = Object.keys(FUT_MULT).concat('USD').filter(function (r) { return d.futures && d.futures[r]; });
     var why = !etf ? 'ETF 틱 없음' : (fut.indexOf('USD') < 0 ? '달러선물(USD) 틱 없음' : (fut.length < 2 ? '지수선물(MNQ · MES) 틱 없음' : ''));
-    return { etf: etf, fut: fut, rnav: n('rnav'), depth: n('depth_etf') + n('depth_fut') + n('depth_book'), ok: !why, why: why };
+    return { etf: etf, fut: fut, rnav: n('rnav'), rebuild: n('rebuild'), depth: n('depth_etf') + n('depth_fut') + n('depth_book'), ok: !why, why: why };
   }
   async function parse(item, reader) {
     var sp = lineSplitter(reader.head, reader.row);
@@ -924,6 +941,7 @@ tr.gap td { color: var(--muted); text-align: center; }
         if (s) { e.s = s.s; e.src = s.src; e.rows = s.rows; }
       });
       if (d.rnav && d.rnav[m[0]]) job(d.rnav[m[0]], rnavReader(day), function (rec) { if (rec.d || rec.i) e.rec = rec; });
+      if (d.rebuild && d.rebuild[m[0]]) job(d.rebuild[m[0]], rebuildReader(day), function (s) { if (s) { e.rec = e.rec || { d: null, i: null }; e.rec.r = s; } });
     });
     await runJobs();
     cand.forEach(function (e) {
@@ -1528,7 +1546,8 @@ tr.gap td { color: var(--muted); text-align: center; }
   function run() {
     if (!DS) return;
     var e = DS.etf.filter(function (x) { return x.code === sel.value; })[0] || DS.etf[0];
-    var c = { basis: $('basisI').checked ? 'i' : 'd', dist: DISTS[+distSel.value], lagQ: +$('lagQ').value, lagF: +$('lagF').value, lagU: +$('lagU').value,
+    var picked = document.querySelector('input[name="basis"]:checked');
+    var c = { basis: picked ? picked.value : 'm', dist: DISTS[+distSel.value], lagQ: +$('lagQ').value, lagF: +$('lagF').value, lagU: +$('lagU').value,
       adjBp: +$('adj').value, ratioF: +$('ratioF').value, ratioU: +$('ratioU').value, tClose: +$('tClose').value,
       hmode: +$('hmode').value, wait: +$('wait').value };
     $('wait').disabled = c.hmode !== 1 && c.hmode !== 2;
@@ -1579,10 +1598,14 @@ tr.gap td { color: var(--muted); text-align: center; }
     row.className = 'rnav'; td.colSpan = span; row.appendChild(td);
   }
   function depthAt(dp, T) { return dp && T >= dp.t[0] ? S.idxAt(dp.t, T) * L.DEPTH_STRIDE : -1; }
+  var BASIS_NAMES = { d: '앱 rNAV 기록(분해)', i: '앱 rNAV 기록(지수형)', r: 'PDF × 개별주식 재조립' };
+  function basisText(cur, c) {
+    if (cur.rec) return BASIS_NAMES[c.basis] || '앱 rNAV 기록';
+    return c.basis === 'm' ? '선물 · 달러선물 재계산' : '그 기준의 자료 없음 · 선물 · 달러선물 재계산';
+  }
   function draw() {
     var e = last.e, c = last.c, r = last.r, x = r.end, st = r.stats, P = r.parts, fut = DS.fut[e.fut], usd = DS.usd;
-    $('meta').textContent = DS.day + ' · ' + clock(x.t0) + ' ~ ' + clock(x.tEnd) + ' · ' +
-      (last.cur.rec ? '앱 rNAV 기록' : 'rNAV 기록 없음 · 선물 변동 재구성값');
+    $('meta').textContent = DS.day + ' · ' + clock(x.t0) + ' ~ ' + clock(x.tEnd) + ' · ' + basisText(last.cur, c);
     var box = $('stats'); box.textContent = '';
     stat(box, 'lead', '합계', krw(x.total, true), '거래대금 대비 ' + perTurn(x.total, st), 'var(--s1)');
     stat(box, '', '확정 손익', krw(x.realized, true), '매칭 ' + shares(x.matched), 'var(--s2)');
@@ -1712,7 +1735,8 @@ tr.gap td { color: var(--muted); text-align: center; }
       ['수수료', '해외선물 계약당 ' + FEE_USD + '달러 × 환율 · ETF · 달러선물 수수료 제외'],
       ['확정 손익', 'min(매수, 매도) 수량 × (평균 매도가 − 평균 매수가) · ETF · 선물 각각'],
       ['평가손익', '남는 한 방향 수량 × 평가가 차이 · ETF 평가가 = 그 시각 rNAV · 선물 = 호가 중간값'],
-      ['rNAV', last.cur.rec ? '앱 rNAV 기록(분해 · 지수형)' : '지수선물 × 달러선물 변동 재구성 · 수준 = 구간 평균 ETF 호가 중간값 · 두 기준 같은 값'],
+      ['rNAV', last.cur.rec ? basisText(last.cur, c) + (c.basis === 'r' ? ' · (PDF 주식수 × 개별주식 가격 × 달러 현물 + 현금) ÷ 1CU 좌수' : '')
+        : '지수선물 × 달러선물 변동으로 다시 계산 · 수준 = 구간 평균 ETF 호가 중간값' + (c.basis === 'm' ? '' : ' · 고른 기준의 자료가 그날 없음')],
       ['자료', 'ETF ' + src(e.src) + ' · 지수선물(마이크로) ' + src(fut.src) + ' · 달러선물 ' + src(usd.src) + ' 틱 · 종가 단일가 구간 제외'],
       ['시장 거래대금', DS.sample ? '종일 · 외부 시세' : '호가 잔량 CSV 의 거래량 증가분 × 현재가 · 09:00 ~ 15:20'],
       ['호가 잔량 분포', '10초 표본 · 5단 호가 잔량을 rNAV 와의 거리(호가단위)별로 합산한 평균']
@@ -1896,7 +1920,7 @@ tr.gap td { color: var(--muted); text-align: center; }
   function summary(ds) {
     var n = function (f) { return ds.etf.filter(f).length; }, futDepth = Object.keys(ds.fut).filter(function (k) { return ds.fut[k].depth; }).length + (ds.usd.depth ? 1 : 0);
     var parts = [cat.zips.map(function (z) { return z.name; }).join(' + '), 'ETF ' + ds.etf.length, '선물 ' + Object.keys(ds.fut).concat('USD').join(' · '),
-      'rNAV 기록 ' + n(function (e) { return e.rec; }), '호가 잔량 ETF ' + n(function (e) { return e.depth; }) + ' · 선물 ' + futDepth];
+      'rNAV 기록 ' + n(function (e) { return e.rec && (e.rec.d || e.rec.i); }), '재조립 ' + n(function (e) { return e.rec && e.rec.r; }), '호가 잔량 ETF ' + n(function (e) { return e.depth; }) + ' · 선물 ' + futDepth];
     return parts.join(' · ');
   }
   async function showDay(day, mine) {
@@ -2025,7 +2049,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     gitShow(); status('깃 연결 해제');
   });
   $('gitPick').addEventListener('change', function () { if (this.value !== '') gitLoad(gitGroups[+this.value]); });
-  ['etf', 'dist', 'basisD', 'basisI', 'tClose', 'hmode', 'wait'].forEach(function (id) { $(id).addEventListener('change', run); });
+  ['etf', 'dist', 'basisM', 'basisD', 'basisI', 'basisR', 'tClose', 'hmode', 'wait'].forEach(function (id) { $(id).addEventListener('change', run); });
   var raf = 0;
   ['lagQ', 'lagF', 'lagU', 'adj', 'ratioF', 'ratioU'].forEach(function (id) {
     $(id).addEventListener('input', function () { clearTimeout(raf); raf = setTimeout(run, 120); });
