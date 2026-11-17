@@ -669,7 +669,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     ['487580', 'TIGER 미국S&P500동일가중', 'MES', 1], ['488500', 'TIGER 미국S&P500동일가중', 'MES', 1]
   ];
   var FUT_MULT = { MNQ: 2, MES: 5 };   
-  var PREFER = { etf: ['krx', 'kfront'], MNQ: ['bloomberg', 'kfront'], MES: ['bloomberg', 'kfront'], USD: ['kfront', 'bloomberg'] };
+  var PREFER = { etf: ['krx', 'kfront'], MNQ: ['bloomberg', 'kfront'], MES: ['bloomberg', 'kfront'], USD: ['krx', 'kfront', 'bloomberg'] };
   var NAME_RE = /(?:^|[\\/])tick_(depth_etf|depth_fut|depth_book|etf|futures|theo|fx|index|stock|rnav)_(.+)_(\d{4}-\d{2}-\d{2})\.csv$/;
   function u16(b, o) { return b[o] | (b[o + 1] << 8); }
   function u32(b, o) { return (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16)) + b[o + 3] * 16777216; }
@@ -1265,7 +1265,8 @@ tr.gap td { color: var(--muted); text-align: center; }
       sum.appendChild(li);
       topics.appendChild(jump(k)); topics.appendChild(ui.el('span', null, TOPICS[k].ask)); topics.appendChild(ui.el('span', 'st', C[k].state));
     }
-    $('lnBasis').textContent = '자료 ' + period + ' · ' + names[code] + ' · 우리 체결은 실제 기록이 아니라 "시장 가격이 우리 호가에 닿으면 체결"로 가정한 것입니다.';
+    $('lnBasis').textContent = '자료 ' + period + ' · ' + names[code] + ' · 우리 체결은 실제 기록이 아니라 "시장 가격이 우리 호가에 닿으면 체결"로 가정한 것입니다.'
+      + (res.cond && res.cond.basis === 'm' ? ' 우리 호가의 중심은 선물 · 달러선물 움직임으로 다시 계산한 값입니다(앱이 기록한 rNAV 는 쓰지 않습니다).' : '');
     box = $('lnProg'); box.textContent = '';
     ui.stat(box, 'lead', '쌓인 자료', nDays + '일', res.days[0] + ' ~ ' + res.days[nDays - 1]);
     ui.stat(box, '', '마지막 학습', res.made, '계산 ' + res.took + '초');
