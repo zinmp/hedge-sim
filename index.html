@@ -67,6 +67,12 @@ body.drag .wrap { outline: 2px dashed var(--s1); outline-offset: -8px; border-ra
 .sbar { display: flex; gap: 2px; height: 12px; min-width: 0; }
 .sbar i { background: var(--c); border-radius: 2px; min-width: 0; }
 @media (max-width: 700px) { .sbar-row { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+.say { display: flex; flex-direction: column; gap: 5px; font-size: 14px; line-height: 1.65; max-width: 900px; }
+.say p { margin: 0; }
+.say p.warn { color: var(--ink-2); font-size: 13px; }
+.cap { margin: 0; font-size: 12.5px; color: var(--muted); }
+.sumlist { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; font-size: 14.5px; line-height: 1.6; }
+.fig { display: flex; flex-direction: column; gap: 6px; }
 #gitRepo { width: 210px; }
 #gitBranch { width: 90px; }
 #gitToken { width: 250px; }
@@ -317,42 +323,65 @@ tr.gap td { color: var(--muted); text-align: center; }
     </form>
     <div class="main" id="lnBody" hidden>
       <section class="panel">
-        <h2>미래예측 · 시차별 반응</h2>
+        <h2>한눈에 보기</h2>
+        <ol class="sumlist" id="lnSum"></ol>
+        <p class="cap" id="lnBasis"></p>
+      </section>
+      <section class="panel">
+        <h2>1. 누가 먼저 움직이나 · 미래예측</h2>
+        <div class="say" id="ln1Say"></div>
         <div class="stats" id="ln1Stats"></div>
-        <div class="legend">
-          <span class="item"><span class="key" style="--c: var(--s1)"></span>선물</span>
-          <span class="item"><span class="key" style="--c: var(--s2)"></span>환</span>
+        <div class="fig" id="ln1Fig">
+          <p class="cap">선물 · 환율이 움직인 뒤 몇 초째에 ETF 가 얼마나 따라 움직였나 — 0초 = 같은 1초 안, 왼쪽(−) = ETF 가 먼저 움직인 경우. 높이 = 선물 · 환율이 1 움직일 때 ETF 가 움직인 양</p>
+          <div class="legend">
+            <span class="item"><span class="key" style="--c: var(--s1)"></span>선물</span>
+            <span class="item"><span class="key" style="--c: var(--s2)"></span>환율</span>
+          </div>
+          <div class="chart" id="ln1Chart" role="img" aria-label="선물 · 환율이 움직인 뒤 초별 ETF 반응 선 차트"></div>
         </div>
-        <div class="chart" id="ln1Chart" role="img" aria-label="시차별 반응 선 차트"></div>
         <div class="tscroll"><table id="ln1Pred"></table></div>
       </section>
       <section class="panel">
-        <h2>미헷지 · 체결 뒤 세 행동</h2>
+        <h2>2. 한쪽만 체결됐을 때 · 미헷지</h2>
+        <div class="say" id="ln2Say"></div>
         <div class="stats" id="ln2Stats"></div>
         <div class="lnsub" id="ln2Body">
+          <p class="cap">기다리는 시간을 바꾸면</p>
           <div class="tscroll"><table id="ln2Waits"></table></div>
+          <p class="cap">상황별 — 체결 1억 원당 손익. 시장 호가 간격 = 체결 순간 시장의 매도1 − 매수1</p>
           <div class="tscroll"><table id="ln2Cells"></table></div>
         </div>
       </section>
       <section class="panel">
-        <h2>영향도 · 설명한 몫 60초 · 따라오는 속도</h2>
+        <h2>3. ETF 는 무엇 때문에 움직이나 · 영향도</h2>
+        <div class="say" id="ln3Say"></div>
         <div class="stats" id="ln3Stats"></div>
-        <div class="legend">
-          <span class="item"><span class="key" style="--c: var(--s1)"></span>선물</span>
-          <span class="item"><span class="key" style="--c: var(--s2)"></span>환</span>
-          <span class="item"><span class="key" style="--c: var(--bar)"></span>나머지</span>
+        <div class="fig">
+          <p class="cap">종목별 — 1분 동안의 움직임을 선물 · 환율 · 그 밖으로 나눈 것</p>
+          <div class="legend">
+            <span class="item"><span class="key" style="--c: var(--s1)"></span>선물</span>
+            <span class="item"><span class="key" style="--c: var(--s2)"></span>환율</span>
+            <span class="item"><span class="key" style="--c: var(--bar)"></span>그 밖</span>
+          </div>
+          <div id="ln3Bars"></div>
         </div>
-        <div id="ln3Bars"></div>
-        <div class="chart" id="ln3Chart" role="img" aria-label="따라오는 속도 선 차트"></div>
+        <div class="fig" id="ln3Fig">
+          <p class="cap">선물 · 환율이 움직인 뒤 ETF 가 따라온 정도 — 초가 지날수록 쌓인 값, 100% = 다 따라옴</p>
+          <div class="chart" id="ln3Chart" role="img" aria-label="선물 · 환율을 ETF 가 따라오는 속도 선 차트"></div>
+        </div>
         <div class="two">
           <div class="tscroll"><table id="ln3Hz"></table></div>
           <div class="tscroll"><table id="ln3Hours"></table></div>
         </div>
       </section>
       <section class="panel">
-        <h2>헷지 · 전 종목 합 · 비율 × 잔량 시각</h2>
+        <h2>4. 헷지를 얼마나 · 언제 · 헷지</h2>
+        <div class="say" id="ln4Say"></div>
         <div class="stats" id="ln4Stats"></div>
-        <div class="chart" id="ln4Chart" role="img" aria-label="흔들림 대비 비용 절감 점 차트"></div>
+        <div class="fig">
+          <p class="cap">점 하나 = 장중 헷지 비율 × 나머지를 헷지하는 시각. 오른쪽일수록 손익이 많이 흔들리고, 위일수록 비용을 많이 아낍니다. 검은 점 = 100% 헷지</p>
+          <div class="chart" id="ln4Chart" role="img" aria-label="헷지 조합별 손익 흔들림과 아낀 비용 점 차트"></div>
+        </div>
         <div class="tscroll"><table id="ln4Table"></table></div>
       </section>
     </div>
@@ -971,8 +1000,8 @@ tr.gap td { color: var(--muted); text-align: center; }
 <script>
 (function (root) {
   'use strict';
-  var SP = ['호가폭 1틱', '호가폭 2틱', '호가폭 3틱 이상'], MOM = ['선물 역방향', '선물 중립', '선물 순방향'], LV = ['1호가', '2호가'];
-  var ACT = { A: '즉시 반대매매', B: '반대편 호가 대기', C: '선물 헷지' };
+  var SP = ['1틱', '2틱', '3틱 이상'], MOM = ['우리에게 불리', '거의 없음', '우리에게 유리'], LV = ['1호가', '2호가'];
+  var ACT = { A: '① 바로 반대매매', B: '② 기다리기', C: '③ 선물 헷지' };
   function pct(v, d) { return v == null ? '–' : (v * 100).toFixed(d == null ? 0 : d) + '%'; }
   function sec(v, d) { return v == null ? '–' : v.toFixed(d == null ? 1 : d) + '초'; }
   function num(v, d) { return v == null ? '–' : v.toFixed(d == null ? 2 : d); }
@@ -1066,49 +1095,89 @@ tr.gap td { color: var(--muted); text-align: center; }
     };
     host.onpointerleave = function () { tip.hidden = true; };
   }
+  function per100m(ui, v) { return v == null ? '–' : (v < 0 ? '−' : '+') + ui.cnt(Math.abs(Math.round(v * 100) * 100)) + '원'; }
+  function span(H) { return H < 60 ? H + '초' : (H / 60) + '분'; }
+  function say(ui, host, lines) {
+    host.textContent = '';
+    lines.forEach(function (t) { if (t) host.appendChild(ui.el('p', t.charAt(0) === '※' ? 'warn' : null, t)); });
+  }
   function draw(ui, res, code) {
     var $ = ui.$, lead = res.lead[code], imp = res.impact[code], un = res.unhedged[code], lg = lead && lead.lag, box, body;
     var names = { ALL: '전 종목' };
     res.etfs.forEach(function (e) { names[e.code] = e.name; });
+    var p3 = lead.pred.filter(function (p) { return p.h === 3; })[0];
+    var h60 = imp.hz.filter(function (x) { return x.H === 60; })[0], h1 = imp.hz[0], hLong = imp.hz[imp.hz.length - 1], hasImp = !!h60 && h60.bF != null;
+    var hg = res.hedge, isBase = function (r) { return r.ratio === hg.base.ratio && r.close === hg.base.close; };
+    var isBest = function (r) { return !!hg.best && r.ratio === hg.best.ratio && r.close === hg.best.close; };
+    var baseRow = hg.rows.filter(isBase)[0], ex = hg.rows.filter(function (r) { return r.ratio === 95 && r.close === hg.base.close; })[0];
+    var W = res.waitMain, wMain = un ? un.waits.filter(function (w) { return w.W === W; })[0] : null;
+    var period = res.days.length === 1 ? res.days[0] + ' 하루' : res.days[0] + ' ~ ' + res.days[res.days.length - 1] + ' · ' + res.days.length + '일';
+    var sum = $('lnSum'); sum.textContent = '';
+    [lg ? '누가 먼저 움직이나 — 선물 · 환율이 먼저 움직이고, ETF 호가는 약 ' + sec(lg.fut.meanLag) + ' 뒤에 따라옵니다(' + sec(lg.fut.t90, 0) + '면 거의 다 반영).' : null,
+      un ? '한쪽만 체결됐을 때 — 체결 1억 원당 손익: 바로 반대매매 ' + per100m(ui, un.mean.A) + ' · ' + W + '초 기다리기 ' + per100m(ui, un.mean.B) + ' · 선물 헷지 ' + per100m(ui, un.mean.C) + '.' : null,
+      hasImp ? 'ETF 가 움직이는 이유 — 1분 움직임의 ' + pct(h60.sF) + ' 는 선물, ' + pct(h60.sX) + ' 는 환율, 나머지 ' + pct(1 - h60.r2) + ' 는 그 밖(ETF 자체의 사고팔기 등).' : null,
+      ex ? '헷지를 줄이면 — 95% 만 헷지하면 하루 ' + ui.krw(ex.saving, false) + ' 아끼지만, 손익이 하루 ' + ui.krw(ex.risk, false) + ' 쯤 흔들립니다. ' +
+        (hg.best ? '추천: 장중 ' + hg.best.ratio + '% · ' + ui.clock(hg.best.close) + ' 에 나머지.' : '어느 쪽이 좋은지는 ' + hg.minDays + '일 치가 쌓이면 표시합니다(지금 ' + hg.days + '일).') : null
+    ].forEach(function (t) { if (t) sum.appendChild(ui.el('li', null, t)); });
+    $('lnBasis').textContent = '자료 ' + period + ' · ' + names[code] + ' · 우리 체결은 실제 기록이 아니라 "시장 가격이 우리 호가에 닿으면 체결"로 가정한 것입니다.';
+    say(ui, $('ln1Say'), lg ? [
+      '선물과 환율이 먼저 움직이고 ETF 호가가 뒤따라옵니다. ETF 는 선물을 평균 ' + sec(lg.fut.meanLag) + ', 환율을 평균 ' + sec(lg.fx.meanLag) + ' 늦게 따라가고, ' + sec(lg.fut.t90, 0) + '면 거의 다(90%) 반영됩니다.',
+      '거꾸로 ETF 가 선물보다 먼저 움직인 몫은 ' + pct(lg.fut.etfLead) + ' 뿐입니다.',
+      p3.hit != null ? '그래서 "지금 ETF 호가가 선물 · 환율 기준 가격(rNAV)보다 싼지 비싼지"만 봐도, 3초 뒤 ETF 가 오를지 내릴지를 ' + pct(p3.hit) + ' 맞혔습니다(ETF 가 움직인 ' + ui.cnt(p3.nz) + '번 중).' : null,
+      '뜻 — 우리 호가를 rNAV 에 맞춰 ' + sec(lg.fut.t90, 0) + ' 안에 고치지 못하면, 이미 지나간 가격에 체결됩니다.',
+      lead.quote ? '※ 이 예측만큼 우리 호가를 더 옮겨 보면 손익이 ' + ui.krw(lead.quote.base, true) + ' → ' + ui.krw(lead.quote.pred, true) + ' 로 ' +
+        (lead.quote.pred < lead.quote.base ? '나빠졌습니다. 우리 호가가 이미 rNAV 를 따라가고 있어서 같은 정보를 두 번 쓰는 셈입니다.' : '좋아졌습니다.') : null
+    ] : ['자료가 모자라 계산하지 못했습니다.']);
     box = $('ln1Stats'); box.textContent = '';
     if (lg) {
-      ui.stat(box, 'lead', '선물 → ETF 시차', sec(lg.fut.meanLag), '절반 ' + sec(lg.fut.t50, 0) + ' · 90% ' + sec(lg.fut.t90, 0), 'var(--s1)');
-      ui.stat(box, '', '환 → ETF 시차', sec(lg.fx.meanLag), '절반 ' + sec(lg.fx.t50, 0) + ' · 90% ' + sec(lg.fx.t90, 0), 'var(--s2)');
-      ui.stat(box, '', 'ETF 가 앞선 몫', pct(lg.fut.etfLead), '환 기준 ' + pct(lg.fx.etfLead));
+      ui.stat(box, 'lead', 'ETF 가 선물을 따라오는 시간', sec(lg.fut.meanLag), '절반 ' + sec(lg.fut.t50, 0) + ' · 거의 다 ' + sec(lg.fut.t90, 0), 'var(--s1)');
+      ui.stat(box, '', 'ETF 가 환율을 따라오는 시간', sec(lg.fx.meanLag), '절반 ' + sec(lg.fx.t50, 0) + ' · 거의 다 ' + sec(lg.fx.t90, 0), 'var(--s2)');
+      ui.stat(box, '', 'ETF 가 먼저 움직인 몫', pct(lg.fut.etfLead), '');
     }
-    var p3 = lead.pred.filter(function (p) { return p.h === 3; })[0];
-    ui.stat(box, '', '3초 뒤 방향 적중', pct(p3.hit), '움직인 표본 ' + ui.cnt(p3.nz));
-    if (lead.quote) ui.stat(box, '', '예측을 더 얹은 호가', ui.krw(lead.quote.pred, true), '기준 ' + ui.krw(lead.quote.base, true) + ' · 시험 구간');
-    $('ln1Chart').hidden = !lg;
+    ui.stat(box, '', '3초 뒤 방향을 맞힌 비율', pct(p3.hit), '');
+    $('ln1Fig').hidden = !lg;
     if (lg) {
       curve(ui, $('ln1Chart'), { xs: res.lags, height: 250, markX: 0, xTicks: [-5, 0, 5, 10, 15], fmtX: lagText, fmtY: function (v) { return v.toFixed(2); },
-        series: [{ name: '선물', color: 'var(--s1)', values: lg.bF }, { name: '환', color: 'var(--s2)', values: lg.bX }] });
+        series: [{ name: '선물', color: 'var(--s1)', values: lg.bF }, { name: '환율', color: 'var(--s2)', values: lg.bX }] });
     }
-    body = ui.head($('ln1Pred'), ['예측 시간', '방향 적중', '설명력', '움직인 표본', '전체 표본']);
-    lead.pred.forEach(function (p) { ui.cells(body.insertRow(), [p.h + '초 뒤', pct(p.hit, 1), num(p.r2, 3), ui.cnt(p.nz), ui.cnt(p.n)]); });
+    body = ui.head($('ln1Pred'), ['몇 초 뒤를 맞히나', '오를지 내릴지 맞힌 비율', 'ETF 가 움직인 횟수', '본 횟수']);
+    lead.pred.forEach(function (p) { ui.cells(body.insertRow(), [p.h + '초 뒤', pct(p.hit, 1), ui.cnt(p.nz), ui.cnt(p.n)]); });
     box = $('ln2Stats'); box.textContent = '';
     $('ln2Body').hidden = !un;
     if (un) {
-      var w30 = un.waits.filter(function (w) { return w.W === res.waitMain; })[0];
-      ui.stat(box, '', ACT.A, ui.bp(un.mean.A), '손실 없음 ' + pct(un.pos.A));
-      ui.stat(box, 'lead', ACT.B + ' ' + res.waitMain + '초', ui.bp(un.mean.B), '손실 없음 ' + pct(un.pos.B) + ' · 우리 호가 체결 ' + pct(w30.fill), 'var(--s1)');
-      ui.stat(box, '', ACT.C, ui.bp(un.mean.C), '손실 없음 ' + pct(un.pos.C));
-      if (un.test) ui.stat(box, '', '상황별 규칙 · 시험', ui.bp(un.test.rule), '늘 헷지 ' + ui.bp(un.test.C) + ' · ' + ui.cnt(un.test.n) + '건 · ' + (un.split === 'day' ? '뒤 30% 날' : '뒤 40% 시간'));
-      ui.stat(box, '', '체결', ui.cnt(un.n) + '건', '흔들림 ' + num(un.sd.A) + ' · ' + num(un.sd.B) + ' · ' + num(un.sd.C) + 'bp');
-      body = ui.head($('ln2Waits'), ['대기 시간', '평균 손익', '우리 호가 체결']);
-      un.waits.forEach(function (w) { var row = body.insertRow(); if (w.W === res.waitMain) row.className = 'pick'; ui.cells(row, [w.W + '초', w.mean == null ? '–' : ui.bp(w.mean), pct(w.fill)]); });
-      body = ui.head($('ln2Cells'), ['호가폭', '선물 방향', '체결 단계', '건수', ACT.A, ACT.B, ACT.C, '나은 행동', '손실 없는 행동']);
+      var bestKey = un.mean.A >= un.mean.B && un.mean.A >= un.mean.C ? 'A' : (un.mean.B >= un.mean.C ? 'B' : 'C');
+      var actB = '② ' + W + '초 기다리기', fore = un.split === 'day' ? '앞쪽 날들' : '하루의 앞쪽 60%', back = un.split === 'day' ? '뒤쪽 날들' : '뒤쪽 40%';
+      say(ui, $('ln2Say'), [
+        '우리 호가가 한쪽만 체결된 ' + ui.cnt(un.n) + '번마다, 그 뒤 세 가지 행동의 결과를 견줬습니다. 숫자는 체결 1억 원당 손익입니다.',
+        '① 바로 시장가로 반대매매 — ' + per100m(ui, un.mean.A) + ' (손해 없이 끝난 비율 ' + pct(un.pos.A) + ')',
+        '② 반대편 우리 호가에 걸어 두고 ' + W + '초 기다리기 — ' + per100m(ui, un.mean.B) + ' (그 안에 체결 ' + pct(wMain.fill) + ', 안 되면 시장가로 정리)',
+        '③ 선물 · 환선물로 헷지 — ' + per100m(ui, un.mean.C) + ' (수수료 · 선물 호가 비용 포함, ' + W + '초 뒤 기준)',
+        '뜻 — 이 자료에서는 ' + ACT[bestKey] + ' 쪽이 가장 나았습니다.' + (un.mean.A < 0 ? ' 바로 반대매매는 시장 호가 간격만큼을 그대로 내는 것이라 평균적으로 손해입니다.' : ''),
+        '※ ②는 "시장 가격이 우리 호가에 닿으면 전량 체결된다"고 가정한 값입니다. 실제로는 줄 서 있는 순서 때문에 덜 체결되어 이보다 나쁩니다. 기다리는 동안은 헷지가 없어 결과도 더 들쭉날쭉합니다.',
+        un.test ? '아래 표의 상황마다 가장 나은 행동을 고르는 규칙을 ' + fore + ' 자료로 만들어 ' + back + ' 자료에 써 보면 1억 원당 ' + per100m(ui, un.test.rule) + ' — 늘 헷지했을 때는 ' + per100m(ui, un.test.C) + ' 였습니다.' : null
+      ]);
+      ui.stat(box, '', ACT.A, per100m(ui, un.mean.A), '체결 1억 원당');
+      ui.stat(box, 'lead', actB, per100m(ui, un.mean.B), '체결 1억 원당 · 그 안에 체결 ' + pct(wMain.fill), 'var(--s1)');
+      ui.stat(box, '', ACT.C, per100m(ui, un.mean.C), '체결 1억 원당');
+      body = ui.head($('ln2Waits'), ['기다리는 시간', '1억 원당 손익', '그 안에 우리 호가가 체결된 비율']);
+      un.waits.forEach(function (w) { var row = body.insertRow(); if (w.W === W) row.className = 'pick'; ui.cells(row, [w.W + '초', per100m(ui, w.mean), pct(w.fill)]); });
+      body = ui.head($('ln2Cells'), ['시장 호가 간격', '체결 직전 선물 움직임', '체결된 우리 호가', '횟수', ACT.A, actB, ACT.C, '가장 나은 것', '손해 안 나는 것']);
       un.cells.forEach(function (c) {
-        var safe = ['A', 'B', 'C'].filter(function (k) { return c[k] >= 0; }).map(function (k) { return ACT[k]; });
-        ui.cells(body.insertRow(), [SP[c.sp], MOM[c.mom], LV[c.lv], ui.cnt(c.n), ui.bp(c.A), ui.bp(c.B), ui.bp(c.C), ACT[c.best], safe.length ? safe.join(' · ') : '없음']);
+        var safe = ['A', 'B', 'C'].filter(function (k) { return c[k] >= 0; }).map(function (k) { return ACT[k].slice(0, 1); });
+        ui.cells(body.insertRow(), [SP[c.sp], MOM[c.mom], LV[c.lv], ui.cnt(c.n), per100m(ui, c.A), per100m(ui, c.B), per100m(ui, c.C), ACT[c.best], safe.length ? safe.join(' ') : '없음']);
       });
-    }
+    } else say(ui, $('ln2Say'), ['체결이 없어 계산하지 못했습니다.']);
+    say(ui, $('ln3Say'), hasImp ? [
+      '1분 동안의 ETF 가격 움직임 중 ' + pct(h60.sF) + ' 는 선물, ' + pct(h60.sX) + ' 는 환율 때문이고, 나머지 ' + pct(1 - h60.r2) + ' 는 그 밖의 이유(ETF 자체의 사고팔기 등)입니다.',
+      '선물이 1% 움직이면 ETF 는 ' + num(h60.bF) + '%, 환율이 1% 움직이면 ' + num(h60.bX) + '% 움직였습니다(1분 기준).',
+      h1.bF != null && hLong.bF != null ? '1초만 보면 선물 1% 에 ETF 가 ' + num(h1.bF) + '% 만 움직인 것처럼 보이는데, ETF 가 늦게 따라오기 때문입니다. ' + span(hLong.H) + '으로 보면 ' + num(hLong.bF) + '% 로 거의 그대로 따라갑니다.' : null,
+      '뜻 — 길게 보면 ETF 는 선물 × 환율을 거의 그대로 따르고, 차이는 처음 몇 초에만 생깁니다.'
+    ] : ['자료가 모자라 계산하지 못했습니다.']);
     box = $('ln3Stats'); box.textContent = '';
-    var h60 = imp.hz.filter(function (x) { return x.H === 60; })[0];
-    if (h60 && h60.bF != null) {
-      ui.stat(box, 'lead', '선물 영향도 · 60초', num(h60.bF), '설명한 몫 ' + pct(h60.sF), 'var(--s1)');
-      ui.stat(box, '', '환 영향도 · 60초', num(h60.bX), '설명한 몫 ' + pct(h60.sX), 'var(--s2)');
-      ui.stat(box, '', '나머지', pct(1 - h60.r2), '선물 · 환으로 설명 안 되는 몫');
+    if (hasImp) {
+      ui.stat(box, 'lead', '선물 때문', pct(h60.sF), '1분 움직임 중', 'var(--s1)');
+      ui.stat(box, '', '환율 때문', pct(h60.sX), '1분 움직임 중', 'var(--s2)');
+      ui.stat(box, '', '그 밖', pct(1 - h60.r2), 'ETF 자체의 사고팔기 등');
     }
     var bars = $('ln3Bars'); bars.textContent = '';
     ['ALL'].concat(res.etfs.map(function (e) { return e.code; })).forEach(function (k) {
@@ -1117,31 +1186,40 @@ tr.gap td { color: var(--muted); text-align: center; }
       var row = ui.el('div', 'sbar-row' + (k === code ? ' pick' : '')), bar = ui.el('div', 'sbar'), parts = [[x.sF, 'var(--s1)'], [x.sX, 'var(--s2)'], [1 - x.r2, 'var(--bar)']];
       parts.forEach(function (p) { var i = ui.el('i'); i.style.flex = Math.max(0, p[0]).toFixed(4) + ' 1 0'; i.style.setProperty('--c', p[1]); bar.appendChild(i); });
       row.appendChild(ui.el('span', 'nm', names[k])); row.appendChild(bar);
-      row.appendChild(ui.el('span', 'num', '선물 ' + pct(x.sF) + ' · 환 ' + pct(x.sX) + ' · 나머지 ' + pct(1 - x.r2)));
+      row.appendChild(ui.el('span', 'num', '선물 ' + pct(x.sF) + ' · 환율 ' + pct(x.sX) + ' · 그 밖 ' + pct(1 - x.r2)));
       bars.appendChild(row);
     });
-    $('ln3Chart').hidden = !lg || !(lg.fut.total > 0.05);
-    if (!$('ln3Chart').hidden) {
+    $('ln3Fig').hidden = !lg || !(lg.fut.total > 0.05);
+    if (!$('ln3Fig').hidden) {
       var xs = lg.fut.cum.map(function (_, i) { return i; }), share = function (s) { return s.cum.map(function (v) { return s.total > 0.05 ? v / s.total : 0; }); };
       curve(ui, $('ln3Chart'), { xs: xs, height: 230, xTicks: [0, 5, 10, 15], fmtX: function (v) { return v + '초'; }, fmtY: function (v) { return pct(v); },
-        series: [{ name: '선물', color: 'var(--s1)', values: share(lg.fut) }, { name: '환', color: 'var(--s2)', values: share(lg.fx) }] });
+        series: [{ name: '선물', color: 'var(--s1)', values: share(lg.fut) }, { name: '환율', color: 'var(--s2)', values: share(lg.fx) }] });
     }
-    body = ui.head($('ln3Hz'), ['구간 길이', '선물', '환', '설명력', '선물 몫', '환 몫']);
-    imp.hz.forEach(function (x) { var row = body.insertRow(); if (x.H === 60) row.className = 'pick'; ui.cells(row, [x.H + '초', num(x.bF), num(x.bX), num(x.r2), pct(x.sF), pct(x.sX)]); });
-    body = ui.head($('ln3Hours'), ['시간대', '선물', '환', '설명력']);
-    imp.hours.forEach(function (x) { ui.cells(body.insertRow(), [x.hour + '시', num(x.bF), num(x.bX), num(x.r2)]); });
-    var hg = res.hedge, isBase = function (r) { return r.ratio === hg.base.ratio && r.close === hg.base.close; }, isBest = function (r) { return !!hg.best && r.ratio === hg.best.ratio && r.close === hg.best.close; };
-    var baseRow = hg.rows.filter(isBase)[0];
+    var pc = function (v) { return v == null ? '–' : v.toFixed(2) + '%'; };
+    body = ui.head($('ln3Hz'), ['재는 시간', '선물 1% 에 ETF', '환율 1% 에 ETF', '선물 · 환율로 설명되는 비율', '그중 선물', '그중 환율']);
+    imp.hz.forEach(function (x) { var row = body.insertRow(); if (x.H === 60) row.className = 'pick'; ui.cells(row, [span(x.H), pc(x.bF), pc(x.bX), pct(x.r2), pct(x.sF), pct(x.sX)]); });
+    body = ui.head($('ln3Hours'), ['시간대', '선물 1% 에 ETF', '환율 1% 에 ETF', '설명되는 비율']);
+    imp.hours.forEach(function (x) { ui.cells(body.insertRow(), [x.hour + '시', pc(x.bF), pc(x.bX), pct(x.r2)]); });
+    say(ui, $('ln4Say'), [
+      '체결될 때마다 전부(100%) 헷지하면 하루 손익은 ' + ui.krw(baseRow.mean, true) + ' 입니다(전 종목 합).',
+      ex ? '장중에는 95% 만 헷지하고 ' + ui.clock(hg.base.close) + ' 에 나머지를 한꺼번에 하면, 선물 수수료와 호가 비용이 하루 ' + ui.krw(ex.saving, false) + ' 줄어듭니다. 대신 헷지 안 된 물량 때문에 하루 손익이 ' +
+        ui.krw(ex.risk, false) + ' 쯤 위아래로 흔들립니다' + (ex.saving > 0 ? ' — 아끼는 돈의 ' + ui.cnt(ex.risk / ex.saving) + '배입니다.' : '.') : null,
+      ex ? '이 자료에서 95% 쪽 손익이 ' + ui.krw(ex.mean, true) + ' 로 나온 것 중 ' + ui.krw(ex.direction, true) + ' 은 "방향 운"입니다 — 헷지 안 한 물량이 마침 유리한 쪽으로 움직였을 뿐이고, 반대로 움직인 날은 그만큼 잃습니다.' : null,
+      hg.best ? '추천 — 장중 ' + hg.best.ratio + '% 헷지, ' + ui.clock(hg.best.close) + ' 에 나머지(하루 손익에서 흔들림을 뺀 값이 가장 큰 조합).'
+        : '※ 어느 조합이 좋은지는 ' + hg.minDays + '일 치가 쌓이면 표시합니다(지금 ' + hg.days + '일). 하루 이틀로는 방향 운이 결과를 정해 버립니다.'
+    ]);
     box = $('ln4Stats'); box.textContent = '';
-    ui.stat(box, 'lead', '기준 100% · ' + ui.clock(hg.base.close), ui.krw(baseRow.mean, true), '하루 평균 · 흔들림 ' + ui.krw(baseRow.risk, false));
-    ui.stat(box, '', '추천', hg.best ? hg.best.ratio + '% · ' + ui.clock(hg.best.close) : '보류', hg.best ? '평균 − 흔들림 최대' : '자료 ' + hg.days + '일 · ' + hg.minDays + '일부터');
-    ui.stat(box, '', '흔들림 기준', hg.riskKind === 'daily' ? '날짜별 표준편차' : '장중 10분 변화', '자료 ' + hg.days + '일');
-    scatter(ui, $('ln4Chart'), { height: 290, xName: '흔들림', yName: '비용 절감', fmtX: function (v) { return ui.krw(v, false); }, fmtY: function (v) { return ui.krw(v, true); },
+    ui.stat(box, 'lead', '100% 헷지 · 하루 손익', ui.krw(baseRow.mean, true), '전 종목 합');
+    if (ex) {
+      ui.stat(box, '', '95% 헷지로 아끼는 비용', ui.krw(ex.saving, false), '하루 · 수수료 + 호가 비용');
+      ui.stat(box, '', '95% 헷지의 손익 흔들림', ui.krw(ex.risk, false), hg.riskKind === 'daily' ? '날마다 달라지는 정도' : '하루 안에서 출렁이는 정도');
+    }
+    scatter(ui, $('ln4Chart'), { height: 290, xName: '손익 흔들림 (오른쪽일수록 위험)', yName: '아낀 비용', fmtX: function (v) { return ui.krw(v, false); }, fmtY: function (v) { return ui.krw(v, true); },
       points: hg.rows.map(function (r) {
-        return { x: r.risk, y: r.saving, kind: isBase(r) ? 'base' : (isBest(r) ? 'best' : ''), label: r.close === hg.base.close ? r.ratio + '%' : '', title: r.ratio + '% · ' + ui.clock(r.close),
-          rows: [{ name: '비용 절감', value: ui.krw(r.saving, true) }, { name: '흔들림', value: ui.krw(r.risk, false) }, { name: '방향 손익', value: ui.krw(r.direction, true) }, { name: '평균 손익', value: ui.krw(r.mean, true) }] };
+        return { x: r.risk, y: r.saving, kind: isBase(r) ? 'base' : (isBest(r) ? 'best' : ''), label: r.close === hg.base.close ? r.ratio + '%' : '', title: '장중 ' + r.ratio + '% · 나머지 ' + ui.clock(r.close),
+          rows: [{ name: '아낀 비용', value: ui.krw(r.saving, true) }, { name: '손익 흔들림', value: ui.krw(r.risk, false) }, { name: '방향 운', value: ui.krw(r.direction, true) }, { name: '하루 손익', value: ui.krw(r.mean, true) }] };
       }) });
-    body = ui.head($('ln4Table'), ['헷지비율', '잔량 헷지', '평균 손익', '비용 절감', '방향 손익', '흔들림', '최대 낙폭', '평균 − 흔들림']);
+    body = ui.head($('ln4Table'), ['장중 헷지 비율', '나머지 헷지 시각', '하루 손익', '아낀 비용', '방향 운', '손익 흔들림', '장중 최대 하락', '손익 − 흔들림']);
     hg.rows.forEach(function (r) {
       var row = body.insertRow(); if (isBase(r) || isBest(r)) row.className = 'pick';
       ui.cells(row, [r.ratio + '%', ui.clock(r.close), ui.krw(r.mean, true), ui.krw(r.saving, true), ui.krw(r.direction, true), ui.krw(r.risk, false), ui.krw(r.mdd, false), ui.krw(r.score, true)]);
