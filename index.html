@@ -222,7 +222,6 @@ tr.gap td { color: var(--muted); text-align: center; }
     <div class="ctl"><span class="lab" id="basislab">호가 기준</span>
       <div class="seg" role="radiogroup" aria-labelledby="basislab">
         <label><input type="radio" name="basis" id="basisM" value="m" checked>선물 · 환 재계산</label>
-        <label><input type="radio" name="basis" id="basisD" value="d">rNAV 분해</label>
         <label><input type="radio" name="basis" id="basisI" value="i">rNAV 지수형</label>
         <label><input type="radio" name="basis" id="basisR" value="r">재조립</label>
       </div>
@@ -1600,7 +1599,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     row.className = 'rnav'; td.colSpan = span; row.appendChild(td);
   }
   function depthAt(dp, T) { return dp && T >= dp.t[0] ? S.idxAt(dp.t, T) * L.DEPTH_STRIDE : -1; }
-  var BASIS_NAMES = { d: '앱 rNAV 기록(분해)', i: '앱 rNAV 기록(지수형)', r: 'PDF × 개별주식 재조립' };
+  var BASIS_NAMES = { i: '앱 rNAV 기록(지수형)', r: 'PDF × 개별주식 재조립' };
   function basisText(cur, c) {
     if (cur.rec) return BASIS_NAMES[c.basis] || '앱 rNAV 기록';
     return c.basis === 'm' ? '선물 · 달러선물 재계산' : '그 기준의 자료 없음 · 선물 · 달러선물 재계산';
@@ -2051,7 +2050,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     gitShow(); status('깃 연결 해제');
   });
   $('gitPick').addEventListener('change', function () { if (this.value !== '') gitLoad(gitGroups[+this.value]); });
-  ['etf', 'dist', 'basisM', 'basisD', 'basisI', 'basisR', 'tClose', 'hmode', 'wait'].forEach(function (id) { $(id).addEventListener('change', run); });
+  ['etf', 'dist', 'basisM', 'basisI', 'basisR', 'tClose', 'hmode', 'wait'].forEach(function (id) { $(id).addEventListener('change', run); });
   var raf = 0;
   ['lagQ', 'lagF', 'lagU', 'adj', 'ratioF', 'ratioU'].forEach(function (id) {
     $(id).addEventListener('input', function () { clearTimeout(raf); raf = setTimeout(run, 120); });
