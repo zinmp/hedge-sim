@@ -578,8 +578,10 @@ tr.gap td { color: var(--muted); text-align: center; }
       else if (px <= q.bid1) { s = 1; lv = px <= q.bid1 - tick ? 2 : 1; base = q.bid1; }  
       if (!s) continue;
       if (lv > p.levels) lv = p.levels;
+      var mkt = s < 0 ? etf.b[k - 1] : etf.a[k - 1];
       for (j = 0; j < lv; j++) {
-        var f = { t: t, s: s, lv: j + 1, p: base - s * j * tick, q: p.qty, r: q.r, f: null, u: null, x: null };
+        var own = base - s * j * tick, crossed = mkt > 0 && (s < 0 ? mkt > own : mkt < own);
+        var f = { t: t, s: s, lv: j + 1, p: crossed ? mkt : own, q: p.qty, r: q.r, f: null, u: null, x: null };
         fills.push(f);
         if (s > 0) nb++; else ns++;
         ev.push({ t: t, k: 0, n: s * p.qty, x: f.p, f: f });
@@ -1724,7 +1726,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     var bl = $('basis'); bl.textContent = '';
     [['호가', 'rNAV 중심 양방향 ' + LEVELS + '단계 · 1호가 = rNAV ± 간격을 호가단위 바깥으로 맞춤 · 2호가 = 한 호가단위 바깥'],
       ['호가 수량', '단계당 지수선물 1계약분 = 승수 × 선물가 × 환율 ÷ ETF가(시작 시각 값 고정)'],
-      ['체결', 'ETF 현재가가 바뀐 틱이 우리 호가에 닿으면 그 단계 전량 체결(체결가 = 우리 호가)'],
+      ['체결', 'ETF 현재가가 바뀐 틱이 우리 호가에 닿으면 그 단계 전량 체결(체결가 = 우리 호가 · 우리 호가가 시장 호가를 넘어서 있었으면 그 시장 호가)'],
       ['호가 갱신 지연', '우리 호가 = 그만큼 전의 rNAV 기준'],
       ['지수선물 헷지', 'ETF 순잔량 × 지수 헷지비율 ÷ 1계약분(절사)에 맞춤 · 100% = 체결 단계마다 1계약'],
       ['달러선물 헷지', 'ETF 순잔량 × 환 헷지비율 ÷ 1계약분(환율 × 10,000 ÷ ETF가, 절사)에 맞춤'],
