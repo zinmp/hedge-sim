@@ -196,6 +196,7 @@ tr.gap td { color: var(--muted); text-align: center; }
   </header>
   <nav class="tabs" role="tablist" aria-label="화면">
     <button type="button" role="tab" id="tabSim" aria-selected="true">시뮬레이터</button>
+    <button type="button" role="tab" id="tabCross" aria-selected="false">ETF 교차 헷지</button>
     <button type="button" role="tab" id="tabLearn" aria-selected="false">학습</button>
   </nav>
   <div class="main" id="viewSim">
@@ -333,6 +334,64 @@ tr.gap td { color: var(--muted); text-align: center; }
   </section>
   </div>
   </div>
+  <div class="main" id="viewCross" hidden>
+    <section class="panel empty" id="xEmpty">시뮬레이터 탭 · 자료 열기</section>
+    <div class="main" id="xMain" hidden>
+      <section class="controls" aria-label="조건">
+        <div class="ctl"><label for="xA">체결 종목</label><select id="xA"></select></div>
+        <div class="ctl"><label for="xB">맞추는 종목</label><select id="xB"></select></div>
+        <div class="ctl"><label for="xBasis">호가 기준</label><select id="xBasis"></select></div>
+        <div class="ctl"><label for="xDist">호가 간격(rNAV 대비)</label><select id="xDist"></select></div>
+        <div class="ctl"><label for="xAmt">하루 체결 규모</label><select id="xAmt"></select></div>
+        <div class="ctl"><label for="xTime">맞추는 시각</label><select id="xTime"></select></div>
+        <div class="ctl"><label for="xMode">맞추는 주문</label><select id="xMode"></select></div>
+        <div class="ctl"><label for="xWait">지정가 대기</label><select id="xWait"></select></div>
+      </section>
+      <section class="stats" id="xStats" aria-label="결과"></section>
+      <div class="two wideleft">
+        <section class="panel">
+          <h2>손익 인식</h2>
+          <div class="tscroll"><table id="xRecog"></table></div>
+        </section>
+        <section class="panel">
+          <h2>손익이 생긴 곳</h2>
+          <div class="tscroll"><table id="xParts"></table></div>
+        </section>
+      </div>
+      <section class="panel">
+        <h2>맞춘 주문 · 호가 충격</h2>
+        <div class="tscroll"><table id="xOrders"></table></div>
+      </section>
+      <section class="panel" id="xImpactPanel" hidden>
+        <h2 id="xImpactTitle">주문 크기별 호가 충격</h2>
+        <div class="tscroll"><table id="xImpact"></table></div>
+      </section>
+      <section class="panel">
+        <h2>맞추는 시각 · 주문별</h2>
+        <div class="tscroll"><table id="xTimes"></table></div>
+      </section>
+      <section class="panel">
+        <h2>맞추는 종목별</h2>
+        <div class="tscroll"><table id="xPairs"></table></div>
+      </section>
+      <section class="panel">
+        <h2>누적 손익</h2>
+        <div class="legend">
+          <span class="item"><span class="key" style="--c: var(--s1)"></span>교차 헷지</span>
+          <span class="item"><span class="key" style="--c: var(--s2)"></span>헷지 없이 그대로</span>
+        </div>
+        <div class="chart" id="xPnl" tabindex="0" role="img" aria-label="교차 헷지 누적 손익 선 차트"></div>
+      </section>
+      <section class="panel">
+        <h2>잔고 · 1CU 보유</h2>
+        <div class="tscroll"><table id="xInv"></table></div>
+      </section>
+      <section class="panel">
+        <h2>기준</h2>
+        <ul class="basis" id="xBasisList"></ul>
+      </section>
+    </div>
+  </div>
   <div class="main" id="viewLearn" hidden>
     <form class="load lnform" id="lnForm" aria-label="학습">
       <label id="lnPassCtl">비밀번호 <input type="password" id="lnPass" autocomplete="off"></label>
@@ -348,6 +407,7 @@ tr.gap td { color: var(--muted); text-align: center; }
         <button type="button" role="tab" data-ln="2" aria-selected="false">미헷지</button>
         <button type="button" role="tab" data-ln="3" aria-selected="false">영향도</button>
         <button type="button" role="tab" data-ln="4" aria-selected="false">헷지</button>
+        <button type="button" role="tab" data-ln="5" aria-selected="false">ETF 교차 헷지</button>
       </nav>
       <div class="main lnpage" data-page="0">
         <section class="panel">
@@ -444,6 +504,28 @@ tr.gap td { color: var(--muted); text-align: center; }
             <div class="chart" id="ln4Chart" role="img" aria-label="헷지 조합별 손익 흔들림과 아낀 비용 점 차트"></div>
           </div>
           <div class="tscroll"><table id="ln4Table"></table></div>
+        </section>
+      </div>
+      <div class="main lnpage" data-page="5" hidden>
+        <div class="two">
+          <section class="panel"><h2>무엇을 보려는 학습인가</h2><dl class="goal" id="ln5Goal"></dl></section>
+          <section class="panel"><h2>지금까지 결론</h2><div class="now" id="ln5Now"></div></section>
+        </div>
+        <section class="panel">
+          <h2>근거 · 다른 ETF 로 맞추면</h2>
+          <div class="load"><label>맞추는 종목 <select id="ln5B"></select></label></div>
+          <div class="say" id="ln5Say"></div>
+          <div class="stats" id="ln5Stats"></div>
+          <div class="lnsub" id="ln5Body">
+            <p class="cap">맞추는 종목별 — 15:00 시장가 · 하루 평균</p>
+            <div class="tscroll"><table id="ln5Pairs"></table></div>
+            <p class="cap">맞추는 시각 · 주문별 — 하루 평균</p>
+            <div class="tscroll"><table id="ln5Cells"></table></div>
+            <p class="cap" id="ln5ImpactCap"></p>
+            <div class="tscroll"><table id="ln5Impact"></table></div>
+            <p class="cap">날짜별 · 누적 — 15:00 시장가. 밤사이 변동 = 들고 넘어온 두 종목 잔고가 다음 자료일 아침까지 움직인 값</p>
+            <div class="tscroll"><table id="ln5Days"></table></div>
+          </div>
         </section>
       </div>
     </div>
@@ -774,15 +856,21 @@ tr.gap td { color: var(--muted); text-align: center; }
   function f64(a) { return Float64Array.from(a); }
   function tickReader(day, lo, hi) {
     var by = {}, ix = null;
+    function slot(key) { return by[key] || (by[key] = { T: [], L: [], B: [], A: [], NT: [], NV: [], prev: 0, rows: 0 }); }
     return {
-      head: function (h) { ix = colIndex(h, ['일자', '시각', '체결가', '매수1', '매도1', '원천']); },
+      head: function (h) { ix = colIndex(h, ['일자', '시각', '체결가', '매수1', '매도1', '원천', 'iNAV']); },
       row: function (c) {
         if (!ix || c[ix[0]] !== day) return;
-        var l = +c[ix[2]], b = +c[ix[3]], a = +c[ix[4]];
-        if (!(l > 0 && b > 0 && a > 0)) return;
-        var t = tenths(c[ix[1]]);
-        if (!(t >= lo && t <= hi)) return;
-        var key = c[ix[5]] || '', s = by[key] || (by[key] = { T: [], L: [], B: [], A: [], rows: 0 }), n = s.T.length;
+        var l = +c[ix[2]], b = +c[ix[3]], a = +c[ix[4]], nv = ix[6] < 0 ? 0 : +c[ix[6]], ok = l > 0 && b > 0 && a > 0;
+        if (!ok && !(nv > 0)) return;
+        var t = tenths(c[ix[1]]), s = null, n;
+        if (nv > 0 && t === t) {
+          s = slot(c[ix[5]] || '');
+          if (t < 0) s.prev = nv;
+          else if (t <= hi) { n = s.NT.length; if (!n || s.NV[n - 1] !== nv) { s.NT.push(t / 10); s.NV.push(nv); } }
+        }
+        if (!ok || !(t >= lo && t <= hi)) return;
+        s = s || slot(c[ix[5]] || ''); n = s.T.length;
         s.rows++;
         if (n && s.L[n - 1] === l && s.B[n - 1] === b && s.A[n - 1] === a) return;
         s.T.push(t / 10); s.L.push(l); s.B.push(b); s.A.push(a);
@@ -798,7 +886,8 @@ tr.gap td { color: var(--muted); text-align: center; }
   }
   function finish(by, key) {
     var s = by[key];
-    return { src: key, rows: s.rows, s: { n: s.T.length, t: f64(s.T), l: f64(s.L), b: f64(s.B), a: f64(s.A) } };
+    return { src: key, rows: s.rows, s: { n: s.T.length, t: f64(s.T), l: f64(s.L), b: f64(s.B), a: f64(s.A) },
+      nav: s.NT.length ? { n: s.NT.length, t: f64(s.NT), v: f64(s.NV) } : null, prevNav: s.prev > 0 ? s.prev : null };
   }
   function rnavReader(day) {
     var ix = null, cols = [{ T: [], V: [], end: 0 }, { T: [], V: [], end: 0 }];
@@ -935,11 +1024,11 @@ tr.gap td { color: var(--muted); text-align: center; }
     ETFS.forEach(function (m) {
       if (!d.etf || !d.etf[m[0]]) return;
       if (!out.fut[m[2]]) { notes.push(m[1] + ' 제외 — ' + m[2] + ' 틱 없음'); return; }
-      var e = { code: m[0], name: m[1], fut: m[2], needRec: !!m[3], s: null, src: '', rows: 0, rec: null, depth: null, mktAmt: null };
+      var e = { code: m[0], name: m[1], fut: m[2], needRec: !!m[3], s: null, src: '', rows: 0, rec: null, depth: null, mktAmt: null, nav: null, prevNav: null };
       cand.push(e);
       job(d.etf[m[0]], tickReader(day, lo, hi), function (by) {
         var s = pickSource(by, PREFER.etf);
-        if (s) { e.s = s.s; e.src = s.src; e.rows = s.rows; }
+        if (s) { e.s = s.s; e.src = s.src; e.rows = s.rows; e.nav = s.nav; e.prevNav = s.prevNav; }
       });
       if (d.rnav && d.rnav[m[0]]) job(d.rnav[m[0]], rnavReader(day), function (rec) { if (rec.d || rec.i) e.rec = rec; });
       if (d.rebuild && d.rebuild[m[0]]) job(d.rebuild[m[0]], rebuildReader(day), function (s) { if (s) { e.rec = e.rec || { d: null, i: null }; e.rec.r = s; } });
@@ -969,6 +1058,132 @@ tr.gap td { color: var(--muted); text-align: center; }
     zipEntries: zipEntries, readEntry: readEntry, lineSplitter: lineSplitter, tenths: tenths,
     openZips: openZips, dayInfo: dayInfo, loadDay: loadDay };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.TickZip = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+</script>
+<script>
+(function (root) {
+  'use strict';
+  var S = typeof module !== 'undefined' && module.exports ? require('./sim.js') : root.HedgeSim;
+  var LEVELS = 5, STRIDE = LEVELS * 4;   
+  var CU = { '133690': 10000, '379810': 50000, '367380': 100000, '368590': 100000, '360750': 50000, '379800': 50000, '360200': 100000, '379780': 100000 };
+  var TIMES = [19800, 21600, 22200, 22500];           
+  var AMOUNTS = [1e9, 3e9, 1e10, 3e10, 0];            
+  var WAITS = [30, 60, 300];                          
+  var SIZES = [1e7, 5e7, 1e8, 3e8, 5e8, 1e9];         
+  function sign(n) { return n > 0 ? 1 : (n < 0 ? -1 : 0); }
+  function navAt(e, t) { return e.nav && e.nav.n && t >= e.nav.t[0] ? e.nav.v[S.idxAt(e.nav.t, t)] : null; }
+  function bookWalk(dp, T, side, qty) {
+    if (!dp || !dp.n || !(T >= dp.t[0]) || !(qty > 0)) return null;
+    var o = S.idxAt(dp.t, T) * STRIDE + (side > 0 ? 0 : LEVELS * 2), top = dp.q[o], left = qty, amt = 0, used = 0, last = top, book = 0, lv;
+    if (!(top > 0)) return null;
+    for (lv = 0; lv < LEVELS; lv++) {
+      var px = dp.q[o + lv * 2], q = dp.q[o + lv * 2 + 1];
+      if (!(px > 0) || !(q > 0)) continue;
+      book += q;
+      if (left <= 0) continue;
+      var take = Math.min(left, q);
+      amt += take * px; left -= take; used = lv + 1; last = px;
+    }
+    if (left > 0) amt += left * last;
+    var avg = amt / qty;
+    return { top: top, topQty: dp.q[o + 1] > 0 ? dp.q[o + 1] : 0, avg: avg, worst: last, levels: used, book: book, beyond: left, slip: side * (avg - top) };
+  }
+  function partners(ds, a) {
+    return ds.etf.filter(function (e) { return e.code !== a.code && e.fut === a.fut && !e.needRec; });
+  }
+  function market(B, t, n) {
+    var w = bookWalk(B.depth, t, sign(n), Math.abs(n)), i = S.idxAt(B.s.t, t), top = n > 0 ? B.s.a[i] : B.s.b[i];
+    return w ? { x: w.avg, top: w.top, walk: w } : { x: top, top: top, walk: null };
+  }
+  function simulate(ds, A, B, c, cache, fillsOf) {
+    var fut = ds.fut[A.fut].s, usd = ds.usd.s;
+    var cond = { basis: c.basis, dist: c.dist, lagQ: c.lagQ || 0, lagF: 0, lagU: 0, adjBp: 0, ratioF: 0, ratioU: 0, tClose: 1e9, hmode: 0, wait: 0 };
+    var a = S.paramsOf(ds, A, cond, cache), b = S.paramsOf(ds, B, cond, cache);
+    var key = A.code + '|' + c.basis + '|' + c.dist + '|' + cond.lagQ, r = fillsOf && fillsOf[key];
+    if (!r) { r = S.simulate(A.s, fut, usd, a.p); if (fillsOf) fillsOf[key] = r; }
+    var fvA = function (t) { return S.rnavAt(a.p, fut, usd, t); }, fvB = function (t) { return S.rnavAt(b.p, fut, usd, t); };
+    var T1 = Math.min(r.end.tEnd, B.s.t[B.s.n - 1]), T0 = Math.max(r.end.t0, B.s.t[0]);
+    var raw = r.fills.filter(function (f) { return f.t <= T1; }), rawAmt = 0;
+    raw.forEach(function (f) { rawAmt += f.q * f.p; });
+    [0, raw.length >> 1, raw.length - 1].forEach(function (i) {
+      var f = raw[i];
+      if (f && Math.abs(fvA(f.t - cond.lagQ) / f.r - 1) > 1e-9) throw new Error('교차 헷지 계산 상태 불일치 — ' + A.code + ' 체결의 호가 중심 ' + f.r + ' ≠ 적정가 ' + fvA(f.t - cond.lagQ));
+    });
+    if (!b.p.rec && Math.abs(S.quoteStats(B.s, fut, usd, b.p).level / b.p.level - 1) > 1e-9) throw new Error('교차 헷지 계산 상태 불일치 — ' + B.code + ' 의 적정가 수준 ' + b.p.level + ' 이 자료에서 다시 구한 값과 다릅니다');
+    var scale = c.amount > 0 && rawAmt > c.amount ? c.amount / rawAmt : 1;
+    var fills = raw.map(function (f) { return { t: f.t, s: f.s, lv: f.lv, p: f.p, q: f.q * scale }; });
+    var sched = c.tHedge < T1 && c.tHedge > T0 ? [c.tHedge, T1] : [T1];
+    var orders = [], pos = 0, fi = 0, net = 0, usedNav = true, k, j;
+    for (j = 0; j < sched.length; j++) {
+      var tau = sched[j], last = j === sched.length - 1;
+      while (fi < fills.length && fills[fi].t <= tau) { net += fills[fi].s * fills[fi].q; fi++; }
+      var nA = navAt(A, tau), nB = navAt(B, tau), ratio;
+      if (nA && nB) ratio = nA / nB; else { ratio = fvA(tau) / fvB(tau); usedNav = false; }
+      var n = -Math.round(net * ratio) - pos;
+      if (!n) continue;
+      var o = { t: tau, tx: tau, n: n, net: net, ratio: ratio, how: 0, lim: null, x: 0, top: 0, walk: null, fv: 0, last: last };
+      if (c.mode === 1 && !last) {
+        var s2 = B.s, i = S.idxAt(s2.t, tau), L = n > 0 ? s2.b[i] : s2.a[i], hit = -1, m;
+        o.lim = L;
+        for (m = i + 1; m < s2.n && s2.t[m] <= tau + c.wait; m++) {
+          var print = s2.l[m] !== s2.l[m - 1];
+          if (n > 0 ? (s2.a[m] <= L || (print && s2.l[m] < L)) : (s2.b[m] >= L || (print && s2.l[m] > L))) { hit = m; break; }
+        }
+        if (hit >= 0) { o.tx = s2.t[hit]; o.x = L; o.top = L; o.how = 1; }
+        else { o.tx = Math.min(tau + c.wait, T1); o.how = 2; }
+      }
+      if (o.how !== 1) { var mk = market(B, o.tx, n); o.x = mk.x; o.top = mk.top; o.walk = mk.walk; }
+      o.fv = fvB(o.tx);
+      pos += n;
+      orders.push(o);
+    }
+    while (fi < fills.length) { net += fills[fi].s * fills[fi].q; fi++; }
+    var FA = fvA(T1), FB = fvB(T1), tau1 = sched[0], FA1 = fvA(tau1);
+    var ra = { bq: 0, ba: 0, sq: 0, sa: 0 }, rb = { bq: 0, ba: 0, sq: 0, sa: 0 }, edge = 0, pre = 0, cost = 0, drift = 0, turnover = 0, hedgeAmt = 0, slipKrw = 0;
+    fills.forEach(function (f) {
+      var ft = fvA(f.t);
+      if (f.s > 0) { ra.bq += f.q; ra.ba += f.q * f.p; } else { ra.sq += f.q; ra.sa += f.q * f.p; }
+      edge += f.s * f.q * (ft - f.p);
+      if (f.t <= tau1) { pre += f.s * f.q * (FA1 - ft); drift += f.s * f.q * (FA - FA1); } else drift += f.s * f.q * (FA - ft);
+      turnover += f.q * f.p;
+    });
+    orders.forEach(function (o2) {
+      if (o2.n > 0) { rb.bq += o2.n; rb.ba += o2.n * o2.x; } else { rb.sq -= o2.n; rb.sa -= o2.n * o2.x; }
+      cost += o2.n * (o2.fv - o2.x);
+      drift += o2.n * (FB - o2.fv);
+      hedgeAmt += Math.abs(o2.n) * o2.x;
+      slipKrw += o2.walk ? Math.abs(o2.n) * o2.walk.slip : 0;
+    });
+    var recog = function (x, mark) {
+      var avgB = x.bq ? x.ba / x.bq : 0, avgS = x.sq ? x.sa / x.sq : 0, nn = x.bq - x.sq;
+      return { real: Math.min(x.bq, x.sq) * (avgS - avgB), unreal: nn > 0 ? nn * (mark - avgB) : (nn < 0 ? -nn * (avgS - mark) : 0), net: nn, avgB: avgB, avgS: avgS, bq: x.bq, sq: x.sq };
+    };
+    var ga = recog(ra, FA), gb = recog(rb, FB), total = ga.real + ga.unreal + gb.real + gb.unreal;
+    var times = [], path = [], solo = [], cashA = 0, qA = 0, cashB = 0, qB = 0, pf = 0, po = 0, done = false;
+    for (var T = T0; !done; T += 60) {
+      if (T >= T1) { T = T1; done = true; }
+      while (pf < fills.length && fills[pf].t <= T) { cashA -= fills[pf].s * fills[pf].q * fills[pf].p; qA += fills[pf].s * fills[pf].q; pf++; }
+      while (po < orders.length && orders[po].tx <= T) { cashB -= orders[po].n * orders[po].x; qB += orders[po].n; po++; }
+      var va = cashA + qA * fvA(T);
+      times.push(T); solo.push(va); path.push(va + cashB + qB * fvB(T));
+    }
+    return { a: A, b: B, c: c, t0: T0, t1: T1, fills: fills, orders: orders, usedNav: usedNav, recA: a.rec, recB: b.rec, scale: scale, rawTurnover: rawAmt,
+      ga: ga, gb: gb, fvA: FA, fvB: FB, total: total, solo: ga.real + ga.unreal,
+      parts: { edge: edge, pre: pre, cost: cost, post: total - edge - pre - cost, drift: drift },
+      turnover: turnover, hedgeAmt: hedgeAmt, slipKrw: slipKrw, n: fills.length, buys: ra.bq, sells: ra.sq,
+      netA: ga.net, posB: gb.net, times: times, path: path, soloPath: solo };
+  }
+  function impact(B, T, sizes) {
+    if (!B.depth) return null;
+    var i = S.idxAt(B.s.t, T), mid = (B.s.b[i] + B.s.a[i]) / 2, tick = S.tickOf(mid);
+    var one = function (side, amt) {
+      var qty = Math.max(1, Math.round(amt / mid)), w = bookWalk(B.depth, T, side, qty);
+      return w ? { qty: qty, ticks: w.slip / tick, levels: w.levels, beyond: w.beyond, topQty: w.topQty, book: w.book } : null;
+    };
+    return (sizes || SIZES).map(function (amt) { return { amt: amt, buy: one(1, amt), sell: one(-1, amt) }; });
+  }
+  var api = { CU: CU, TIMES: TIMES, WAITS: WAITS, SIZES: SIZES, AMOUNTS: AMOUNTS, navAt: navAt, bookWalk: bookWalk, partners: partners, simulate: simulate, impact: impact };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.EtfPair = api;
 })(typeof window !== 'undefined' ? window : globalThis);
 </script>
 <script>
@@ -1192,7 +1407,10 @@ tr.gap td { color: var(--muted); text-align: center; }
     { name: '영향도', ask: '환율과 선물이 ETF 가격에 각각 얼마나 영향을 주는지. ETF 움직임 가운데 선물 몫 · 환율 몫 · 그 밖의 몫이 얼마인지.',
       use: '선물 · 환 헷지 비율을 정하는 근거이고, 선물 · 환율로 설명되지 않는 종목을 가려냅니다.' },
     { name: '헷지', ask: '헷지 주문을 장중에는 몇 % 만 하고, 나머지를 몇 시에 한꺼번에 하는 것이 수익에 좋은지.',
-      use: '비용을 아끼는 만큼 위험을 져도 되는지를 정합니다.' }];
+      use: '비용을 아끼는 만큼 위험을 져도 되는지를 정합니다.' },
+    { name: 'ETF 교차 헷지', ask: '한 ETF 를 선물 · 환 헷지 없이 사고팔다가, 장 막판에 남은 잔고만큼을 같은 지수의 다른 ETF 로 맞추면 손익이 어떻게 되는지. 그렇게 며칠 쌓아 한쪽은 설정, 다른 쪽은 환매로 풀면 어떤지.',
+      use: '선물 · 환선물 대신 다른 ETF 로 헷지해도 되는지, 몇 시에 · 시장가와 지정가 중 무엇으로 맞출지, 어느 종목이 호가 충격이 작은지를 정합니다.' }];
+  var NT = TOPICS.length - 1;   
   function goal(ui, host, rows) {
     host.textContent = '';
     rows.forEach(function (r) { if (r[1]) { host.appendChild(ui.el('dt', null, r[0])); host.appendChild(ui.el('dd', null, r[1])); } });
@@ -1263,22 +1481,52 @@ tr.gap td { color: var(--muted); text-align: center; }
           (ex.saving > 0 ? '(아끼는 돈의 ' + ui.cnt(ex.risk / ex.saving) + '배).' : '.') : null,
         hg.best ? null : '하루 이틀 자료에서 덜 헷지한 쪽이 좋아 보이는 것은 대부분 "방향 운"입니다 — 헷지 안 한 물량이 마침 유리한 쪽으로 움직였을 뿐입니다.'],
       next: hg.best ? '날이 더 쌓여도 같은 조합이 남는지.' : '추천까지 ' + Math.max(0, hg.minDays - hg.days) + '일 치가 더 필요합니다.' };
+    var cx = res.cross, ca = null, cb = null, cp = null, cMain = null, cLim = null, mates = [];
+    if (cx && cx.order.length) {
+      var has = function (a) { return cx.order.some(function (key) { return key.split('|')[0] === a; }); };
+      ca = code !== 'ALL' && has(code) ? code : (has('133690') ? '133690' : cx.order[0].split('|')[0]);
+      mates = cx.order.filter(function (key) { return key.split('|')[0] === ca; }).map(function (key) { return cx.pairs[key]; });
+      var bSel = $('ln5B'), keepB = bSel.value;
+      bSel.textContent = '';
+      mates.forEach(function (m) { var o = ui.el('option', null, names[m.b] || m.b); o.value = m.b; bSel.appendChild(o); });
+      cb = (mates.filter(function (m) { return m.b === keepB; })[0] || mates.filter(function (m) { return /RISE/.test(names[m.b] || ''); })[0] || mates[0]).b;
+      bSel.value = cb;
+      cp = cx.pairs[ca + '|' + cb];
+      cMain = cp.cells.filter(function (c) { return c.t === cx.main && c.m === 0; })[0];
+      cLim = cp.cells.filter(function (c) { return c.t === cx.main && c.m === 1; })[0];
+    }
+    var per1 = function (v) { return cp && cp.turnover ? (v < 0 ? '−' : '+') + ui.cnt(Math.abs(v / cp.turnover * 1e8)) + '원' : '–'; };
+    var cuText = function (n, unit) { return (n < 0 ? '−' : '') + ui.cnt(Math.abs(n)) + '주' + (unit ? '(' + (Math.abs(n) / unit).toFixed(2) + 'CU)' : ''); };
+    if (cp) {
+      var byCost = mates.map(function (m) { return { name: names[m.b] || m.b, cost: m.cells.filter(function (c) { return c.t === cx.main && c.m === 0; })[0].cost }; }).sort(function (a, b) { return b.cost - a.cost; });
+      var lastDay = cp.daily[cp.daily.length - 1];
+      C[5] = { state: cp.days + '일 치 · 체결은 가정',
+        head: '헷지 없이 쌓은 잔고를 ' + ui.clock(cx.main) + ' 에 ' + names[cb] + ' 로 맞추면 하루 평균 ' + ui.krw(cMain.total, true) + ' 입니다(하루 체결 ' + ui.krw(cx.amount, false) + ' 기준).',
+        points: ['이 가운데 ' + ui.krw(cMain.pre, true) + ' 은 맞추기 전까지 헷지 없이 들고 있던 잔고가 움직인 값입니다 — 방향이 맞은 날은 벌고 틀린 날은 잃는 "방향 운"입니다.',
+          '호가로 번 돈은 하루 ' + ui.krw(cMain.edge, true) + ', ' + names[cb] + ' 로 맞추는 데 든 비용은 ' + ui.krw(cMain.cost, true) + ' 입니다(체결 1억 원당 ' + per1(cMain.cost) + ').',
+          byCost.length > 1 ? '맞추는 비용이 가장 적은 종목은 ' + byCost[0].name + '(' + ui.krw(byCost[0].cost, true) + '), 가장 큰 종목은 ' + byCost[byCost.length - 1].name + '(' + ui.krw(byCost[byCost.length - 1].cost, true) + ')입니다.' : null,
+          cLim.fill != null ? '지정가(자기 1호가 · ' + cx.wait + '초 대기)로 걸면 맞추는 비용이 ' + ui.krw(cLim.cost, true) + ' 로 바뀌고, 그 안에 체결된 날은 ' + pct(cLim.fill) + ' 입니다.' : null,
+          cp.block ? names[ca] + ' ' + cp.block.m + 'CU ↔ ' + names[cb] + ' ' + cp.block.n + 'CU 가 금액이 맞는 가장 작은 묶음입니다 — 잔고가 그만큼 쌓이면 설정 · 환매로 풉니다(지금 ' + names[ca] + ' 누적 ' + cuText(lastDay.devA, cp.cuA) + ').' : null],
+        next: '날이 더 쌓여 방향 운이 평균에서 빠지는지, 설정 · 환매까지 며칠이 걸리는지. 수수료 · 세금 · 설정/환매 비용은 아직 넣지 않았습니다.' };
+    } else C[5] = { head: '같은 지수의 종목 짝이 없어 아직 계산하지 못했습니다.', points: [], next: null, state: '자료 모자람' };
     var prog = '자료 ' + period + ' · 마지막 학습 ' + res.made + (running ? ' · 지금 새 자료를 학습하는 중(묶음 ' + st.done + ' / ' + st.total + ')' : '');
     var how = [null,
       '1초 단위로, 선물 · 환율이 움직인 뒤 ETF 호가가 몇 초에 걸쳐 따라오는지(' + Math.abs(res.lags[0]) + '초 전 ~ ' + res.lags[res.lags.length - 1] + '초 뒤)를 잽니다. 예측은 앞쪽 자료로 규칙을 만들고, 규칙을 만들 때 쓰지 않은 뒤쪽 자료에서 맞는지 봅니다.',
       '한쪽 체결이 생길 때마다 세 가지 행동(① 바로 시장가 반대매매 ② 반대편 우리 호가에 걸고 기다리기 ③ 선물 헷지)의 결과를 체결 1억 원당 손익으로 견줍니다. 상황(시장 호가 간격 × 체결 직전 선물 움직임 × 체결된 호가)마다 가장 나은 행동을 고르는 규칙을 만들어, 규칙을 만들 때 쓰지 않은 자료에 써 봅니다.',
       'ETF 가격 움직임을 선물 · 환율 움직임으로 설명하는 식을 ' + (h1 ? span(h1.H) + ' ~ ' + span(hLong.H) : '여러') + ' 단위로 맞춰, 선물 · 환율이 1% 움직일 때 ETF 가 몇 % 움직이는지와 설명되는 몫을 봅니다. 종목별 · 시간대별로도 나눕니다.',
       '장중 헷지 비율 ' + ratios.length + '가지(' + Math.max.apply(null, ratios) + ' ~ ' + Math.min.apply(null, ratios) + '%) × 나머지를 헷지하는 시각 ' + closes.length + '가지(' + ui.clock(Math.min.apply(null, closes)) + ' ~ ' +
-        ui.clock(Math.max.apply(null, closes)) + ')를 같은 체결에 돌려, 아끼는 비용 · 방향 운 · 손익 흔들림으로 나눠 봅니다.'];
+        ui.clock(Math.max.apply(null, closes)) + ')를 같은 체결에 돌려, 아끼는 비용 · 방향 운 · 손익 흔들림으로 나눠 봅니다.',
+      cx ? '시뮬레이터와 같은 체결을 하루 ' + ui.krw(cx.amount, false) + ' 어치로 줄여, 선물 · 환 헷지 없이 쌓은 잔고를 맞추는 시각 ' + cx.times.length + '가지 × 주문 2가지(시장가 · 지정가 ' + cx.wait +
+        '초)로 다른 ETF 에 같은 금액만큼 반대로 냅니다. 시장가는 그 순간 호가 잔량을 1호가부터 먹는 것으로 계산해 호가 충격을 잽니다. 손익은 장 끝 적정가(선물 · 달러선물로 다시 계산한 값)로 평가합니다.' : null];
     var size = [null, p3.n ? '1초 단위로 ' + ui.cnt(p3.n) + '번 봄' : null, un ? '한쪽 체결 ' + ui.cnt(un.n) + '번' : null, '종목 ' + res.etfs.length + '개 · 지금 보는 것 ' + names[code],
-      '전 종목 합 · 추천은 ' + hg.minDays + '일 치부터'];
-    for (k = 1; k <= 4; k++) {
+      '전 종목 합 · 추천은 ' + hg.minDays + '일 치부터', cp ? names[ca] + ' ↔ ' + names[cb] + ' · ' + cp.days + '일' : null];
+    for (k = 1; k <= NT; k++) {
       goal(ui, $('ln' + k + 'Goal'), [['알고 싶은 것', TOPICS[k].ask], ['재는 방법', how[k]], ['쓰는 곳', TOPICS[k].use], ['진행', prog + (size[k] ? ' · ' + size[k] : '')]]);
       now(ui, $('ln' + k + 'Now'), C[k]);
     }
     var sum = $('lnSum'), topics = $('lnTopics'), jump = function (n) { var b = ui.el('button', 'jump', TOPICS[n].name); b.type = 'button'; b.setAttribute('data-ln', n); return b; };
     sum.textContent = ''; topics.textContent = '';
-    for (k = 1; k <= 4; k++) {
+    for (k = 1; k <= NT; k++) {
       var li = ui.el('li');
       li.appendChild(jump(k)); li.appendChild(document.createTextNode(' — ' + C[k].head));
       sum.appendChild(li);
@@ -1389,14 +1637,208 @@ tr.gap td { color: var(--muted); text-align: center; }
       var row = body.insertRow(); if (isBase(r) || isBest(r)) row.className = 'pick';
       ui.cells(row, [r.ratio + '%', ui.clock(r.close), ui.krw(r.mean, true), ui.krw(r.saving, true), ui.krw(r.direction, true), ui.krw(r.risk, false), ui.krw(r.mdd, false), ui.krw(r.score, true)]);
     });
+    box = $('ln5Stats'); box.textContent = '';
+    $('ln5Body').hidden = !cp;
+    if (!cp) { say(ui, $('ln5Say'), ['같은 지수의 종목 짝이 없어 계산하지 못했습니다.']); return; }
+    var order = ['시장가', '지정가'], mainIs = function (c) { return c.t === cx.main && c.m === 0; };
+    say(ui, $('ln5Say'), [
+      names[ca] + ' 를 헷지 없이 사고판 뒤 남은 잔고를 ' + names[cb] + ' 로 맞춘 결과입니다. 숫자는 하루 평균, "1억 원당"은 ' + names[ca] + ' 체결 1억 원에 대한 값입니다.',
+      '손익은 네 덩이로 나뉩니다 — 호가로 번 돈 · 맞추기 전에 잔고가 움직인 값 · 맞출 때 낸 비용(상대 호가 · 호가 충격) · 맞춘 뒤 남은 변동.',
+      '※ "맞추기 전 변동"은 헷지 없이 들고 있던 동안 가격이 움직인 값이라 날마다 부호가 바뀝니다. 며칠 치 평균이 크게 나와도 실력이 아니라 방향 운입니다.',
+      '※ 체결은 실제 기록이 아니라 가정이고, 하루 체결 규모를 ' + ui.krw(cx.amount, false) + ' 로 맞춘 값입니다. 수수료 · 세금 · 설정/환매 비용은 빠져 있습니다.',
+      cp.depthDays < cp.days ? '※ 호가 잔량 자료가 없는 날(' + (cp.days - cp.depthDays) + '일)은 시장가를 1호가에 전량 체결로 계산했습니다 — 그날은 호가 충격이 빠져 있습니다.' : null
+    ]);
+    ui.stat(box, 'lead', '하루 평균 손익', ui.krw(cMain.total, true), '체결 1억 원당 ' + per1(cMain.total), 'var(--s1)');
+    ui.stat(box, '', '호가 수익', ui.krw(cMain.edge, true), '체결 1억 원당 ' + per1(cMain.edge));
+    ui.stat(box, '', '맞추기 전 변동', ui.krw(cMain.pre, true), '방향 운');
+    ui.stat(box, '', '맞출 때 비용', ui.krw(cMain.cost, true), '1호가 밖으로 밀린 금액 ' + ui.krw(cMain.slip, false));
+    ui.stat(box, '', '가장 나빴던 날', ui.krw(cMain.worst, true), cp.days + '일 가운데');
+    body = ui.head($('ln5Pairs'), ['맞추는 종목', '하루 손익', '맞출 때 비용', '1호가 밖으로 밀린 금액', '주문 금액', '자료', '호가 잔량 있는 날']);
+    mates.forEach(function (m) {
+      var c0 = m.cells.filter(mainIs)[0], row = body.insertRow();
+      if (m.b === cb) row.className = 'pick';
+      ui.cells(row, [names[m.b] || m.b, ui.krw(c0.total, true), ui.krw(c0.cost, true), m.depthDays ? ui.krw(c0.slip, false) : '잔량 자료 없음', ui.krw(c0.amt, false), m.days + '일', m.depthDays + '일']);
+    });
+    body = ui.head($('ln5Cells'), ['맞추는 시각', '주문', '하루 손익', '맞추기 전 변동', '맞출 때 비용', '맞춘 뒤 변동', '가장 나빴던 날', '지정가가 체결된 날']);
+    cp.cells.forEach(function (c) {
+      var row = body.insertRow(); if (mainIs(c)) row.className = 'pick';
+      ui.cells(row, [ui.clock(c.t), order[c.m], ui.krw(c.total, true), ui.krw(c.pre, true), ui.krw(c.cost, true), ui.krw(c.post, true), ui.krw(c.worst, true), c.m ? pct(c.fill) : '–']);
+    });
+    var im = cx.impact[cb];
+    $('ln5ImpactCap').textContent = im ? names[cb] + ' 호가 충격 — 그 금액을 시장가로 냈을 때 1호가보다 평균 몇 틱 불리한가(' + im.days + '일 평균 · * = 5단 호가를 다 먹고도 모자란 날이 있음)'
+      : names[cb] + ' 호가 충격 — 호가 잔량 자료가 있는 날이 아직 없습니다';
+    $('ln5Impact').hidden = !im;
+    if (im) {
+      var heads = ['주문 금액'];
+      cx.times.forEach(function (t) { heads.push(ui.clock(t) + ' 매수'); heads.push(ui.clock(t) + ' 매도'); });
+      body = ui.head($('ln5Impact'), heads);
+      var tk = function (v, out) { return v == null ? '–' : v.toFixed(2) + '틱' + (out > 0 ? ' *' : ''); };
+      cx.sizes.forEach(function (amt, si) {
+        var vals = [ui.krw(amt, false)];
+        cx.times.forEach(function (t, ti) { var s = im.cells[ti][si]; vals.push(tk(s.buy, s.buyOut)); vals.push(tk(s.sell, s.sellOut)); });
+        ui.cells(body.insertRow(), vals);
+      });
+    }
+    body = ui.head($('ln5Days'), ['날짜', '그날 손익', '밤사이 변동', '누적 손익', names[ca] + ' 누적 잔고', names[cb] + ' 누적 잔고', '설정 · 환매']);
+    cp.daily.forEach(function (d) {
+      var ev = d.ev.map(function (e) { return names[ca] + ' ' + e.a + ' ' + e.m + 'CU · ' + names[cb] + ' ' + e.b + ' ' + e.n + 'CU'; }).join(' / ');
+      ui.cells(body.insertRow(), [d.day, ui.krw(d.total, true), ui.krw(d.carry, true), ui.krw(d.cum, true), cuText(d.devA, cp.cuA), cuText(d.devB, cp.cuB), ev || '–']);
+    });
   }
   root.LearnView = { draw: draw };
 })(window);
 </script>
 <script>
+(function (root) {
+  'use strict';
+  var X = root.EtfPair;
+  var DISTS = [0, 0.5, 1, 1.5, 2, 3, 5], MODES = ['시장가', '지정가 · 자기 1호가'];
+  var BASES = [['m', '선물 · 환 재계산'], ['i', 'rNAV 지수형'], ['r', '재조립']];
+  var ui = null, getDS = null, DS = null, cache = {}, fillsOf = {}, last = null;
+  function opt(sel, text, value, picked) { var o = ui.el('option', null, text); o.value = value; o.selected = !!picked; sel.appendChild(o); }
+  function amtName(v) { return v ? ui.krw(v, false) : '줄이지 않음'; }
+  function per(v, turnover) { return turnover ? (v < 0 ? '−' : '+') + ui.cnt(Math.abs(v / turnover * 1e8)) + '원' : '–'; }
+  function qty(n) { return (n < 0 ? '−' : '') + ui.cnt(Math.abs(n)) + '주'; }
+  function cu(n, code) { return X.CU[code] ? (n / X.CU[code]).toFixed(2) + 'CU' : '–'; }
+  function byCode(code) { return DS.etf.filter(function (e) { return e.code === code; })[0]; }
+  function mount(u, dataOf) {
+    ui = u; getDS = dataOf;
+    var $ = ui.$;
+    BASES.forEach(function (b, i) { opt($('xBasis'), b[1], b[0], i === 0); });
+    DISTS.forEach(function (d) { opt($('xDist'), d + 'bp', d, d === 0); });
+    X.AMOUNTS.forEach(function (a) { opt($('xAmt'), amtName(a), a, a === 3e9); });
+    X.TIMES.forEach(function (t) { opt($('xTime'), ui.clock(t), t, t === 21600); });
+    MODES.forEach(function (m, i) { opt($('xMode'), m, i, i === 0); });
+    X.WAITS.forEach(function (w) { opt($('xWait'), w < 60 ? w + '초' : (w / 60) + '분', w, w === 60); });
+    $('xA').addEventListener('change', function () { fillB(); run(); });
+    ['xB', 'xBasis', 'xDist', 'xAmt', 'xTime', 'xMode', 'xWait'].forEach(function (id) { $(id).addEventListener('change', run); });
+  }
+  function fillB() {
+    var $ = ui.$, a = byCode($('xA').value), keep = $('xB').value, list = a ? X.partners(DS, a) : [];
+    $('xB').textContent = '';
+    list.forEach(function (e) { opt($('xB'), e.name + ' (' + e.code + ')', e.code, false); });
+    var want = list.filter(function (e) { return e.code === keep; })[0] || list.filter(function (e) { return /RISE/.test(e.name); })[0] || list[0];
+    if (want) $('xB').value = want.code;
+  }
+  function show() {
+    var $ = ui.$, ds = getDS();
+    if (ds !== DS) {
+      DS = ds; cache = {}; fillsOf = {}; last = null;
+      var keep = $('xA').value;
+      $('xA').textContent = '';
+      if (DS) {
+        DS.etf.filter(function (e) { return !e.needRec && X.partners(DS, e).length; }).forEach(function (e) { opt($('xA'), e.name + ' (' + e.code + ')', e.code, e.code === keep); });
+        fillB();
+      }
+    }
+    var ok = !!DS && !!$('xA').value && !!$('xB').value;
+    $('xEmpty').hidden = ok; $('xMain').hidden = !ok;
+    if (ok) run();
+  }
+  function cond(over) {
+    var $ = ui.$, c = { basis: $('xBasis').value, dist: +$('xDist').value, lagQ: 0, amount: +$('xAmt').value, tHedge: +$('xTime').value, mode: +$('xMode').value, wait: +$('xWait').value }, k;
+    for (k in over) c[k] = over[k];
+    return c;
+  }
+  function sim(A, B, over) { return X.simulate(DS, A, B, cond(over), cache, fillsOf); }
+  function run() {
+    var $ = ui.$, A = byCode($('xA').value), B = byCode($('xB').value);
+    if (!DS || !A || !B) return;
+    $('xWait').disabled = +$('xMode').value !== 1;
+    var r = sim(A, B, {}), grid = [];
+    X.TIMES.forEach(function (t) { [0, 1].forEach(function (m) { grid.push({ t: t, m: m, r: t === r.c.tHedge && m === r.c.mode ? r : sim(A, B, { tHedge: t, mode: m }) }); }); });
+    var pairs = X.partners(DS, A).map(function (e) { return e.code === B.code ? r : sim(A, e, {}); });
+    last = { A: A, B: B, r: r, grid: grid, pairs: pairs };
+    draw();
+  }
+  function draw() {
+    if (!last) return;
+    var $ = ui.$, r = last.r, A = last.A, B = last.B, P = r.parts, c = r.c, box = $('xStats'), body, row;
+    var basisName = BASES.filter(function (b) { return b[0] === c.basis; })[0][1];
+    var mark = r.recA ? basisName : (c.basis === 'm' ? '선물 · 달러선물 재계산' : '그 기준의 자료 없음 · 선물 · 달러선물 재계산');
+    $('meta').textContent = DS.day + ' · ' + ui.clock(r.t0) + ' ~ ' + ui.clock(r.t1) + ' · ' + mark;
+    box.textContent = '';
+    ui.stat(box, 'lead', '합계', ui.krw(r.total, true), '체결 1억 원당 ' + per(r.total, r.turnover), 'var(--s1)');
+    ui.stat(box, '', '호가 수익', ui.krw(P.edge, true), '체결 ' + ui.cnt(r.n) + '회 · 매수 ' + qty(r.buys) + ' · 매도 ' + qty(r.sells));
+    ui.stat(box, '', '맞추기 전 변동', ui.krw(P.pre, true), '무헷지 · ' + ui.clock(r.orders.length ? r.orders[0].t : r.t1) + ' 까지');
+    ui.stat(box, '', '맞출 때 비용', ui.krw(P.cost, true), B.name + ' ' + r.orders.length + '건 · ' + ui.krw(r.hedgeAmt, false));
+    ui.stat(box, '', '맞춘 뒤 변동', ui.krw(P.post, true), '');
+    ui.stat(box, '', '헷지 없이 그대로', ui.krw(r.solo, true), A.name + ' 만 · 장 끝 적정가 평가', 'var(--s2)');
+    ui.stat(box, '', '거래대금', ui.krw(r.turnover, false), r.scale < 1 ? '시뮬레이션 체결 ' + ui.krw(r.rawTurnover, false) + ' 의 ' + (r.scale * 100).toFixed(2) + '%' : '줄이지 않음');
+    body = ui.head($('xRecog'), ['종목', '매수', '매도', '확정 손익', '잔고', '적정가', '평가손익', '합']);
+    [[A, r.ga, r.fvA], [B, r.gb, r.fvB]].forEach(function (x) {
+      var g = x[1];
+      ui.cells(body.insertRow(), [x[0].name, qty(g.bq), qty(g.sq), ui.krw(g.real, true), qty(g.net), ui.px(x[2], 2), ui.krw(g.unreal, true), ui.krw(g.real + g.unreal, true)]);
+    });
+    row = body.insertRow(); row.className = 'sum';
+    ui.cells(row, ['합계', '', '', ui.krw(r.ga.real + r.gb.real, true), '', '', ui.krw(r.ga.unreal + r.gb.unreal, true), ui.krw(r.total, true)]);
+    body = ui.head($('xParts'), ['항목', '금액', '체결 1억 원당']);
+    [['호가 수익', P.edge], ['맞추기 전 변동', P.pre], ['맞출 때 비용', P.cost], ['맞춘 뒤 변동', P.post]].forEach(function (x) {
+      ui.cells(body.insertRow(), [x[0], ui.krw(x[1], true), per(x[1], r.turnover)]);
+    });
+    row = body.insertRow(); row.className = 'sum';
+    ui.cells(row, ['합계', ui.krw(r.total, true), per(r.total, r.turnover)]);
+    var tickB = root.HedgeSim.tickOf(r.fvB);
+    body = ui.head($('xOrders'), ['시각', '방향', '수량', '금액', '주문', '체결 종목 순잔고', '1호가', '평균 체결가', '적정가', '1호가 잔량', '먹은 단', '1호가 대비', '5단 밖']);
+    r.orders.forEach(function (o) {
+      var w = o.walk, how = o.how ? ['', '지정가 체결 · ', '시장가 전환 · '][o.how] + ui.clock(o.tx, true) : '시장가' + (o.last ? ' · 장 끝' : '');
+      ui.cells(body.insertRow(), [ui.clock(o.t, true), o.n > 0 ? '매수' : '매도', qty(Math.abs(o.n)), ui.krw(Math.abs(o.n) * o.x, false), how, qty(o.net),
+        ui.px(o.top, 0), ui.px(o.x, 2), ui.px(o.fv, 2), w ? qty(w.topQty) : '–', w ? w.levels + '단' : '–',
+        w ? ui.px(w.slip, 2) + '원 · ' + (w.slip / tickB).toFixed(2) + '틱' : (o.how === 1 ? '0원' : '잔량 자료 없음'), w ? (w.beyond ? qty(w.beyond) : '0') : '–']);
+    });
+    if (!r.orders.length) { row = body.insertRow(); ui.cells(row, ['맞출 잔고 없음']); row.cells[0].colSpan = 13; }
+    var im = X.impact(B, c.tHedge);
+    $('xImpactPanel').hidden = !im;
+    if (im) {
+      $('xImpactTitle').textContent = '주문 크기별 호가 충격 · ' + B.name + ' · ' + ui.clock(c.tHedge);
+      body = ui.head($('xImpact'), ['주문 금액', '매수 수량', '매수 1호가 대비', '매수 먹은 단', '매수 5단 밖', '매도 수량', '매도 1호가 대비', '매도 먹은 단', '매도 5단 밖']);
+      var side = function (s) { return s ? [qty(s.qty), s.ticks.toFixed(2) + '틱', s.levels + '단', s.beyond ? qty(s.beyond) : '0'] : ['–', '–', '–', '–']; };
+      im.forEach(function (x) { ui.cells(body.insertRow(), [ui.krw(x.amt, false)].concat(side(x.buy), side(x.sell))); });
+    }
+    body = ui.head($('xTimes'), ['맞추는 시각', '주문', '합계', '체결 1억 원당', '맞추기 전 변동', '맞출 때 비용', '맞춘 뒤 변동', '첫 주문 체결']);
+    last.grid.forEach(function (g) {
+      var x = g.r, o = x.orders[0];
+      row = body.insertRow(); if (x === r) row.className = 'pick';
+      ui.cells(row, [ui.clock(g.t), MODES[g.m].split(' · ')[0], ui.krw(x.total, true), per(x.total, x.turnover), ui.krw(x.parts.pre, true), ui.krw(x.parts.cost, true), ui.krw(x.parts.post, true),
+        o ? ['시장가', '지정가 체결 · ' + ui.clock(o.tx, true), '시장가 전환 · ' + ui.clock(o.tx, true)][o.how] : '–']);
+    });
+    body = ui.head($('xPairs'), ['맞추는 종목', '합계', '맞출 때 비용', '주문 금액', '첫 주문 1호가 잔량', '첫 주문 먹은 단', '1호가 대비 손해', '장 끝 잔고']);
+    last.pairs.forEach(function (x) {
+      var o = x.orders[0], w = o && o.walk;
+      row = body.insertRow(); if (x === r) row.className = 'pick';
+      ui.cells(row, [x.b.name, ui.krw(x.total, true), ui.krw(x.parts.cost, true), ui.krw(x.hedgeAmt, false), w ? qty(w.topQty) : '–', w ? w.levels + '단' : '–',
+        x.b.depth ? ui.krw(-x.slipKrw, true) : '잔량 자료 없음', qty(x.posB) + ' · ' + cu(x.posB, x.b.code)]);
+    });
+    ui.lineChart($('xPnl'), { times: r.times, height: 280, series: [
+      { name: '교차 헷지', color: 'var(--s1)', values: r.path },
+      { name: '헷지 없이 그대로', color: 'var(--s2)', values: r.soloPath }] });
+    body = ui.head($('xInv'), ['종목', '1CU', '오늘 변화', '장 끝 잔고', '1CU 대비']);
+    [[A, r.netA], [B, r.posB]].forEach(function (x) {
+      var unit = X.CU[x[0].code] || 0, end = unit + x[1];
+      row = body.insertRow(); if (unit && end < 0) row.className = 'pick';
+      ui.cells(row, [x[0].name, unit ? qty(unit) : '모름', qty(x[1]), unit ? qty(end) + (end < 0 ? ' · 보유분 초과' : '') : '–', unit ? (end / unit).toFixed(2) + 'CU' : '–']);
+    });
+    var list = $('xBasisList'), item = function (k, v) { var li = ui.el('li'); li.appendChild(ui.el('b', null, k)); li.appendChild(document.createTextNode(v)); list.appendChild(li); };
+    list.textContent = '';
+    item('체결', '시장 체결이 우리 호가에 닿으면 체결 · 실제 체결 기록 아님');
+    item('체결 규모', r.scale < 1 ? '체결 수량 × ' + (r.scale * 100).toFixed(2) + '% → 하루 ' + ui.krw(r.turnover, false) : '시뮬레이션 체결 그대로');
+    item('헷지', '선물 · 달러선물 없음 · 맞추는 시각과 장 끝(' + ui.clock(r.t1) + ')에 ' + B.name);
+    var ratio = r.orders.length ? ' · ' + A.name + ' 1주 = ' + B.name + ' ' + r.orders[0].ratio.toFixed(3) + '주' : '';
+    item('수량 환산', (r.usedNav ? 'iNAV 비율 · 같은 금액' : '적정가 비율 · 같은 금액(iNAV 자료 없음)') + ratio);
+    item('시장가', B.depth ? '그 시각 호가 잔량을 1호가부터 · 5단 밖은 5단 가격' : '1호가에 전량(호가 잔량 자료 없음 · 충격 미반영)');
+    item('지정가', '자기 쪽 1호가 · 상대 호가가 닿아야 전량 체결 · 대기 뒤 시장가');
+    item('호가 충격', '그 순간 잔량 기준 · 주문 뒤 호가 변화 미반영');
+    item('평가', '적정가 = ' + mark);
+    item('1CU', A.name + ' ' + ui.cnt(X.CU[A.code] || 0) + '좌 · ' + B.name + ' ' + ui.cnt(X.CU[B.code] || 0) + '좌(PDF 설정현금액 ÷ 전일 NAV)');
+    item('비용', '수수료 · 세금 · 설정/환매 비용 제외');
+  }
+  root.CrossView = { mount: mount, show: show, draw: draw };
+})(window);
+</script>
+<script>
 (function () {
   'use strict';
-  var S = window.HedgeSim, L = window.TickZip, G = window.TickGit, Seal = window.Seal, LearnView = window.LearnView;
+  var S = window.HedgeSim, L = window.TickZip, G = window.TickGit, Seal = window.Seal, LearnView = window.LearnView, CrossView = window.CrossView;
   var DS = null;        
   var qsCache = {};
   var STEP = S.FIX.step, LEVELS = S.FIX.levels, FEE_USD = S.FIX.feeUsd;
@@ -1900,6 +2342,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     nl.hidden = !DS.notes.length;
     $('empty').hidden = true; $('main').hidden = false;
     run();
+    if (!$('viewCross').hidden) CrossView.show();   
   }
   function fromSample(raw) {
     var ds = { day: raw.day, sample: true, etf: [], fut: {}, notes: [],
@@ -2058,9 +2501,10 @@ tr.gap td { color: var(--muted); text-align: center; }
   var rz = 0;
   window.addEventListener('resize', function () {
     clearTimeout(rz);
-    rz = setTimeout(function () { if (!$('viewLearn').hidden) lnDraw(); else if (last) { draw(); rpDraw(); } }, 120);
+    rz = setTimeout(function () { if (!$('viewLearn').hidden) lnDraw(); else if (!$('viewCross').hidden) CrossView.draw(); else if (last) { draw(); rpDraw(); } }, 120);
   });
-  var ui = { $: $, el: el, krw: krw, bp: bp, cnt: cnt, clock: clock, head: head, cells: cells, stat: stat, niceTicks: niceTicks };
+  var ui = { $: $, el: el, krw: krw, bp: bp, cnt: cnt, clock: clock, head: head, cells: cells, stat: stat, niceTicks: niceTicks, lineChart: lineChart, px: px };
+  CrossView.mount(ui, function () { return DS; });
   var learn = { pass: null, res: null, st: null, timer: 0, seq: 0 };
   function lnStatus(text, err) { var s = $('lnStatus'); s.textContent = text; s.classList.toggle('err', !!err); }
   function lnLock() {
@@ -2122,14 +2566,17 @@ tr.gap td { color: var(--muted); text-align: center; }
   });
   $('lnRefresh').addEventListener('click', function () { if (learn.pass) lnLoad(); });
   $('lnEtf').addEventListener('change', lnDraw);
-  function showTab(isLearn) {
-    $('tabSim').setAttribute('aria-selected', isLearn ? 'false' : 'true'); $('tabLearn').setAttribute('aria-selected', isLearn ? 'true' : 'false');
-    $('viewSim').hidden = isLearn; $('viewLearn').hidden = !isLearn;
+  $('ln5B').addEventListener('change', lnDraw);   
+  var TABS = { sim: ['tabSim', 'viewSim'], cross: ['tabCross', 'viewCross'], learn: ['tabLearn', 'viewLearn'] };
+  function showTab(name) {
+    Object.keys(TABS).forEach(function (k) { $(TABS[k][0]).setAttribute('aria-selected', k === name ? 'true' : 'false'); $(TABS[k][1]).hidden = k !== name; });
     lnLock();
-    if (isLearn) { rpStop(); $('lnPass').focus(); } else if (last) { draw(); rpDraw(); }
+    if (name !== 'sim') rpStop();
+    if (name === 'learn') $('lnPass').focus(); else if (name === 'cross') CrossView.show(); else if (last) { draw(); rpDraw(); }
   }
-  $('tabSim').addEventListener('click', function () { showTab(false); });
-  $('tabLearn').addEventListener('click', function () { showTab(true); });
+  $('tabSim').addEventListener('click', function () { showTab('sim'); });
+  $('tabCross').addEventListener('click', function () { showTab('cross'); });
+  $('tabLearn').addEventListener('click', function () { showTab('learn'); });
   var sample = $('tickdata').textContent.trim();
   if (sample) { setData(fromSample(JSON.parse(sample))); status('내장 표본 ' + DS.day); } else $('empty').hidden = false;
   var hash = new URLSearchParams(location.hash.slice(1)), preset = G.parseRepo(hash.get('repo'));
