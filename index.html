@@ -1113,7 +1113,7 @@ tr.gap td { color: var(--muted); text-align: center; }
     var scale = c.amount > 0 && rawAmt > c.amount ? c.amount / rawAmt : 1;
     var fills = raw.map(function (f) { return { t: f.t, s: f.s, lv: f.lv, p: f.p, q: f.q * scale }; });
     var sched = c.tHedge < T1 && c.tHedge > T0 ? [c.tHedge, T1] : [T1];
-    var orders = [], pos = 0, fi = 0, net = 0, usedNav = true, k, j;
+    var orders = [], pos = 0, fi = 0, net = 0, usedNav = true, j;
     for (j = 0; j < sched.length; j++) {
       var tau = sched[j], last = j === sched.length - 1;
       while (fi < fills.length && fills[fi].t <= tau) { net += fills[fi].s * fills[fi].q; fi++; }
